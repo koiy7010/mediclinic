@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, RadioTower } from 'lucide-react'
+import { RadioTower } from 'lucide-react'
 import { format } from 'date-fns'
 import { mockRadiologyReports } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
@@ -14,12 +14,24 @@ import { NormalToggle } from '@/components/ui/NormalToggle'
 import { toast } from '@/lib/use-toast'
 import { useCtrlS } from '@/lib/use-ctrl-s'
 import NoPatientSelected from '@/components/NoPatientSelected'
+import { FloatingActionBar } from '@/components/ui/FloatingActionBar'
+import { AutoSaveIndicator } from '@/components/ui/AutoSaveIndicator'
+import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
+import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
+import { PrintButton } from '@/components/ui/PrintButton'
+import { cn } from '@/lib/utils'
 
 const TEMPLATES = [
-  { label: 'Normal Chest PA', findings: 'The lungs are clear. No infiltrates, consolidation, or pleural effusion noted. The heart is not enlarged. The mediastinum is within normal limits. The bony thorax is intact.', impression: 'Normal chest PA view.' },
-  { label: 'Mild Cardiomegaly', findings: 'The heart appears mildly enlarged. The pulmonary vascularity is within normal limits. No pleural effusion. Lungs are clear.', impression: 'Mild cardiomegaly.' },
-  { label: 'PTB Active', findings: 'There are patchy infiltrates noted in the upper lobe of the right lung. The left lung is clear. No pleural effusion.', impression: 'Findings may suggest active pulmonary tuberculosis. Correlation with clinical findings recommended.' },
-  { label: 'PTB Minimal', findings: 'Minimal infiltrates noted in the right upper lobe. Left lung is clear. Heart size is normal. Bony thorax intact.', impression: 'Findings suggest minimal PTB. Please correlate clinically.' },
+  { label: 'Normal Chest PA', findings: 'The lungs are clear. No infiltrates, consolidation, or pleural effusion noted. The heart is not enlarged. The mediastinum is within normal limits. The bony thorax is intact.', impression: 'Normal chest PA view.', isNormal: true },
+  { label: 'Mild Cardiomegaly', findings: 'The heart appears mildly enlarged. The pulmonary vascularity is within normal limits. No pleural effusion. Lungs are clear.', impression: 'Mild cardiomegaly.', isNormal: false },
+  { label: 'PTB Active', findings: 'There are patchy infiltrates noted in the upper lobe of the right lung. The left lung is clear. No pleural effusion.', impression: 'Findings may suggest active pulmonary tuberculosis. Correlation with clinical findings recommended.', isNormal: false },
+  { label: 'PTB Minimal', findings: 'Minimal infiltrates noted in the right upper lobe. Left lung is clear. Heart size is normal. Bony thorax intact.', impression: 'Findings suggest minimal PTB. Please correlate clinically.', isNormal: false },
+]
+
+const PRINT_SECTIONS = [
+  { id: 'patient-info', label: 'Patient Information', defaultChecked: true },
+  { id: 'xray-details', label: 'X-Ray Details', defaultChecked: true },
+  { id: 'findings', label: 'Findings & Impression', defaultChecked: true },
 ]
 
 function calcAge(birthdate: string) {
@@ -38,6 +50,7 @@ export default function XRayReport() {
     is_normal: null as boolean | null,
   })
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
 
@@ -47,6 +60,7 @@ export default function XRayReport() {
       if (reports && reports.length > 0) {
         const r = reports[0]
         setForm({ report_title: r.report_title, result_date: r.result_date, examination_type: r.examination_type, xray_no: r.xray_no, findings: r.findings, impression: r.impression, is_normal: r.is_normal })
+        setIsDirty(false)
       }
     }
   }, [selectedPatient])
@@ -56,35 +70,71 @@ export default function XRayReport() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['radiology'] })
       toast({ title: 'X-Ray report saved', variant: 'success' })
+      setIsDirty(false)
     },
   })
-  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
-  useCtrlS(() => saveMutation.mutate())
+
+  const set = (k: string, v: any) => {
+    setForm(f => ({ ...f, [k]: v }))
+    setIsDirty(true)
+  }
+
+  const handleSave = useCallback(() => {
+    saveMutation.mutate()
+  }, [saveMutation])
+
+  useCtrlS(handleSave)
+
+  useGlobalShortcuts({
+    onSave: handleSave,
+  })
+
+  const handleAutoSave = useCallback(async () => {
+    if (isDirty) {
+      await saveMutation.mutateAsync()
+    }
+  }, [isDirty, saveMutation])
+
+  const applyTemplate = (template: typeof TEMPLATES[0]) => {
+    set('findings', template.findings)
+    set('impression', template.impression)
+    set('is_normal', template.isNormal)
+    setActiveTemplate(template.label)
+  }
 
   if (!selectedPatient) {
     return <NoPatientSelected icon={RadioTower} label="X-Ray" />
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))]">
+    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
       <StickyPatientHeader patient={selectedPatient} module="X-Ray" />
       <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <RadioTower className="w-5 h-5 text-[hsl(var(--primary))]" />
-            <h2 className="text-lg font-bold">X-Ray Report</h2>
+        {/* Breadcrumb */}
+        <PageBreadcrumb
+          patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
+          module="X-Ray"
+        />
+
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <RadioTower className="w-5 h-5 text-[hsl(var(--primary))]" />
+              <h2 className="text-lg font-bold">X-Ray Report</h2>
+            </div>
+            <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Ctrl+S to save</span>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              <Save className="w-4 h-4 mr-2" />{saveMutation.isPending ? 'Saving…' : 'Save Report'}
-            </Button>
+            <PrintButton sections={PRINT_SECTIONS} />
           </div>
         </div>
+
         <div className="bg-[hsl(var(--primary))] rounded-xl px-6 py-4">
           <h2 className="text-xl font-bold text-[hsl(var(--primary-foreground))] text-center">{form.report_title}</h2>
         </div>
-        <SectionCard title="Patient Information">
+
+        <SectionCard title="Patient Information" id="patient-info">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div><p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Name</p><p className="text-sm font-medium mt-1">{selectedPatient.last_name}, {selectedPatient.first_name}</p></div>
             <div><p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Company</p><p className="text-sm font-medium mt-1">{selectedPatient.employer || '—'}</p></div>
@@ -92,37 +142,54 @@ export default function XRayReport() {
             <FormField label="Result Date"><Input type="date" value={form.result_date} onChange={e => set('result_date', e.target.value)} /></FormField>
           </div>
         </SectionCard>
-        <SectionCard title="X-Ray Details">
+
+        <SectionCard title="X-Ray Details" id="xray-details">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <FormField label="Report Title" className="sm:col-span-2"><Input value={form.report_title} onChange={e => set('report_title', e.target.value)} /></FormField>
             <FormField label="Examination Type"><Input value={form.examination_type} onChange={e => set('examination_type', e.target.value)} placeholder="e.g. Chest PA" /></FormField>
             <FormField label="X-Ray No."><Input value={form.xray_no} onChange={e => set('xray_no', e.target.value)} placeholder="XR-000000" /></FormField>
           </div>
+          
           <div className="mb-4">
             <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-2">Quick Templates</p>
             <div className="flex flex-wrap gap-2">
               {TEMPLATES.map(t => (
                 <Button key={t.label} variant="outline" size="sm"
-                  onClick={() => { set('findings', t.findings); set('impression', t.impression); setActiveTemplate(t.label) }}
-                  className={activeTemplate === t.label ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]' : ''}>
+                  onClick={() => applyTemplate(t)}
+                  className={cn(
+                    activeTemplate === t.label 
+                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]' 
+                      : '',
+                    !t.isNormal && 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                  )}>
                   {t.label}
+                  {t.isNormal && <span className="ml-1 text-[10px] text-[hsl(var(--success))]">✓</span>}
                 </Button>
               ))}
             </div>
           </div>
-          <FormField label="Radiology Findings" required className="mb-4">
+
+          <FormField label="Radiology Findings" required className="mb-4" id="findings">
             <textarea value={form.findings} onChange={e => set('findings', e.target.value)} rows={5}
               className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-none transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Describe the radiology findings…" />
           </FormField>
+
           <FormField label="Impression" required className="mb-4">
             <textarea value={form.impression} onChange={e => set('impression', e.target.value)} rows={3}
               className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-none transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Clinical impression…" />
           </FormField>
+
           <NormalToggle value={form.is_normal} onChange={v => set('is_normal', v)} name="xray_normal" />
         </SectionCard>
       </div>
+
+      {/* Floating action bar */}
+      <FloatingActionBar
+        onSave={handleSave}
+        saving={saveMutation.isPending}
+      />
     </div>
   )
 }

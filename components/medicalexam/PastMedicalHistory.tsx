@@ -4,7 +4,7 @@ import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { CheckCheck } from 'lucide-react'
+import { CheckCheck, Eraser } from 'lucide-react'
 
 const CONDITIONS = [
   'Allergies', 'Chickenpox', 'Diabetes', 'Epilepsy', 'Measles', 'Cancer',
@@ -36,10 +36,16 @@ export default function PastMedicalHistory({ data, onChange }: { data: any; onCh
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
             Check all conditions that apply to the patient.
           </p>
-          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
-            className="border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
-            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
-          </Button>
+          <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
+            <Button variant="ghost" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
+              className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+              <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onChange({})}
+              className="rounded-none text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]">
+              <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
+            </Button>
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {CONDITIONS.map(c => {

@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck } from 'lucide-react'
 import { useState } from 'react'
-import GlobalSearch from '@/components/GlobalSearch'
+import EnhancedGlobalSearch from '@/components/EnhancedGlobalSearch'
+import { RecentPatientsDropdown } from '@/components/ui/RecentPatients'
 import { usePatient } from '@/lib/patient-context'
 
 const navItems = [
@@ -39,8 +40,9 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <div className="px-3 py-3 border-b border-[hsl(var(--sidebar-border))]">
-          <GlobalSearch />
+        <div className="px-3 py-3 border-b border-[hsl(var(--sidebar-border))] space-y-2">
+          <EnhancedGlobalSearch />
+          <RecentPatientsDropdown />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -94,7 +96,7 @@ export default function Sidebar() {
           <Menu className="w-5 h-5 text-[hsl(var(--sidebar-foreground))]" />
         </button>
         <div className="flex-1">
-          <GlobalSearch />
+          <EnhancedGlobalSearch />
         </div>
       </header>
     </>

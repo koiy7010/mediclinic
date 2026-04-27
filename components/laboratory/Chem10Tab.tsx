@@ -5,19 +5,20 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 const chem10Tests = [
-  { key: 'fbs', label: 'FBS (Fasting Blood Sugar)', unit: 'mmol/L', ref: '3.9–6.1', normal: '5.0' },
-  { key: 'bun', label: 'BUN', unit: 'mmol/L', ref: '2.5–7.1', normal: '5.0' },
-  { key: 'uric_acid', label: 'Uric Acid', unit: 'µmol/L', ref: 'M: 202–416 | F: 143–339', normal: '310' },
-  { key: 'creatinine', label: 'Creatinine', unit: 'µmol/L', ref: 'M: 62–115 | F: 53–97', normal: '88' },
-  { key: 'cholesterol', label: 'Cholesterol', unit: 'mmol/L', ref: '< 5.18', normal: '4.5' },
-  { key: 'triglyceride', label: 'Triglyceride', unit: 'mmol/L', ref: '< 1.70', normal: '1.2' },
-  { key: 'hdl', label: 'HDL', unit: 'mmol/L', ref: '> 1.04', normal: '1.3' },
-  { key: 'ldl', label: 'LDL', unit: 'mmol/L', ref: '< 3.36', normal: '2.5' },
-  { key: 'vldl', label: 'VLDL', unit: 'mmol/L', ref: '0.26–1.04', normal: '0.6' },
-  { key: 'sgpt', label: 'SGPT (ALT)', unit: 'U/L', ref: '7–56', normal: '25' },
-  { key: 'sgot', label: 'SGOT (AST)', unit: 'U/L', ref: '10–40', normal: '22' },
+  { key: 'fbs', label: 'FBS (Fasting Blood Sugar)', unit: 'mmol/L', ref: '3.9–6.1', normal: '5.0', min: 3.9, max: 6.1 },
+  { key: 'bun', label: 'BUN', unit: 'mmol/L', ref: '2.5–7.1', normal: '5.0', min: 2.5, max: 7.1 },
+  { key: 'uric_acid', label: 'Uric Acid', unit: 'µmol/L', ref: 'M: 202–416 | F: 143–339', normal: '310', min: 143, max: 416 },
+  { key: 'creatinine', label: 'Creatinine', unit: 'µmol/L', ref: 'M: 62–115 | F: 53–97', normal: '88', min: 53, max: 115 },
+  { key: 'cholesterol', label: 'Cholesterol', unit: 'mmol/L', ref: '< 5.18', normal: '4.5', min: 0, max: 5.18 },
+  { key: 'triglyceride', label: 'Triglyceride', unit: 'mmol/L', ref: '< 1.70', normal: '1.2', min: 0, max: 1.70 },
+  { key: 'hdl', label: 'HDL', unit: 'mmol/L', ref: '> 1.04', normal: '1.3', min: 1.04, max: 999 },
+  { key: 'ldl', label: 'LDL', unit: 'mmol/L', ref: '< 3.36', normal: '2.5', min: 0, max: 3.36 },
+  { key: 'vldl', label: 'VLDL', unit: 'mmol/L', ref: '0.26–1.04', normal: '0.6', min: 0.26, max: 1.04 },
+  { key: 'sgpt', label: 'SGPT (ALT)', unit: 'U/L', ref: '7–56', normal: '25', min: 7, max: 56 },
+  { key: 'sgot', label: 'SGOT (AST)', unit: 'U/L', ref: '10–40', normal: '22', min: 10, max: 40 },
 ]
 
 const NORMAL_VALUES = chem10Tests.reduce((acc: any, t) => {
@@ -26,9 +27,22 @@ const NORMAL_VALUES = chem10Tests.reduce((acc: any, t) => {
   return acc
 }, { result_date: format(new Date(), 'yyyy-MM-dd'), is_normal: true })
 
+function isInRange(value: string, min?: number, max?: number): boolean | null {
+  if (!value || min === undefined || max === undefined) return null
+  const num = parseFloat(value)
+  if (isNaN(num)) return null
+  return num >= min && num <= max
+}
+
 export default function Chem10Tab({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
+
+  // Count how many values are out of range
+  const outOfRangeCount = chem10Tests.filter(t => {
+    const inRange = isInRange(data[t.key], t.min, t.max)
+    return inRange === false
+  }).length
 
   return (
     <div className="space-y-5">
@@ -42,6 +56,11 @@ export default function Chem10Tab({ data, onChange }: { data: any; onChange: (v:
           className="mb-0.5 border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
           ✓ Fill Normal Values
         </Button>
+        {outOfRangeCount > 0 && (
+          <span className="text-xs text-[hsl(var(--destructive))] font-medium mb-1">
+            {outOfRangeCount} value{outOfRangeCount > 1 ? 's' : ''} out of range
+          </span>
+        )}
       </div>
 
       <SectionCard title="Chemistry Panel (Chem 10)">
@@ -53,23 +72,52 @@ export default function Chem10Tab({ data, onChange }: { data: any; onChange: (v:
                 <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-32">Result</th>
                 <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-24">Unit</th>
                 <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Reference Range</th>
+                <th className="text-center px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-16">Status</th>
                 <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-36">Remarks</th>
               </tr>
             </thead>
             <tbody>
-              {chem10Tests.map((t, i) => (
-                <tr key={t.key} className={`transition-colors hover:bg-[hsl(var(--accent)/0.4)] ${i % 2 === 0 ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--muted)/0.2)]'}`}>
-                  <td className="px-4 py-2.5 font-medium">{t.label}</td>
-                  <td className="px-4 py-2.5">
-                    <Input value={data[t.key] || ''} onChange={e => set(t.key, e.target.value)} className="h-8 text-sm" placeholder="—" />
-                  </td>
-                  <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.unit}</td>
-                  <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.ref}</td>
-                  <td className="px-4 py-2.5">
-                    <Input value={data[`${t.key}_remark`] || ''} onChange={e => set(`${t.key}_remark`, e.target.value)} className="h-8 text-sm" placeholder="—" />
-                  </td>
-                </tr>
-              ))}
+              {chem10Tests.map((t, i) => {
+                const inRange = isInRange(data[t.key], t.min, t.max)
+                return (
+                  <tr key={t.key} className={cn(
+                    "transition-colors hover:bg-[hsl(var(--accent)/0.4)]",
+                    i % 2 === 0 ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--muted)/0.2)]',
+                    inRange === false && 'bg-[hsl(var(--destructive)/0.05)]'
+                  )}>
+                    <td className="px-4 py-2.5 font-medium">{t.label}</td>
+                    <td className="px-4 py-2.5">
+                      <Input 
+                        value={data[t.key] || ''} 
+                        onChange={e => set(t.key, e.target.value)} 
+                        className={cn(
+                          "h-8 text-sm",
+                          inRange === true && "border-[hsl(var(--success))]",
+                          inRange === false && "border-[hsl(var(--destructive))] bg-[hsl(var(--destructive)/0.05)]"
+                        )} 
+                        placeholder="—" 
+                      />
+                    </td>
+                    <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.unit}</td>
+                    <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.ref}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {inRange !== null && (
+                        <span className={cn(
+                          "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold",
+                          inRange 
+                            ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))]" 
+                            : "bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]"
+                        )}>
+                          {inRange ? '✓' : '!'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Input value={data[`${t.key}_remark`] || ''} onChange={e => set(`${t.key}_remark`, e.target.value)} className="h-8 text-sm" placeholder="—" />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
