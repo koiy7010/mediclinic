@@ -13,7 +13,10 @@ const ToastViewport = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Viewport
     ref={ref}
-    className={cn("fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-sm", className)}
+    className={cn(
+      "fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-sm p-4 outline-none",
+      className
+    )}
     {...props}
   />
 ))
@@ -27,6 +30,8 @@ const Toast = React.forwardRef<
     ref={ref}
     className={cn(
       "group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-xl border p-4 pr-8 shadow-xl transition-all",
+      "data-[state=open]:animate-toast-in data-[state=closed]:animate-toast-out",
+      "data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none",
       variant === 'success' && "bg-[hsl(var(--success-muted))] border-[hsl(var(--success)/0.3)] text-[hsl(var(--success))]",
       variant === 'destructive' && "bg-[hsl(var(--destructive)/0.1)] border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))]",
       variant === 'default' && "bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]",
@@ -43,7 +48,11 @@ const ToastClose = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
-    className={cn("absolute right-2 top-2 rounded-md p-1 opacity-60 hover:opacity-100", className)}
+    className={cn(
+      "absolute right-2 top-2 rounded-md p-1 opacity-60 hover:opacity-100 transition-opacity",
+      "focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]",
+      className
+    )}
     toast-close=""
     {...props}
   >
@@ -72,7 +81,7 @@ function Toaster() {
   const toasts = useToastStore()
 
   return (
-    <ToastProvider>
+    <ToastProvider swipeDirection="right">
       {toasts.map(t => (
         <Toast key={t.id} open={t.open} variant={t.variant}>
           {t.variant === 'success' && <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}

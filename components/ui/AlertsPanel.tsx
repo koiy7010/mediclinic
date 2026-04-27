@@ -344,7 +344,7 @@ export function NotificationBell() {
             className="fixed inset-0 z-40"
             onClick={() => setShowPanel(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-96 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="fixed left-[17rem] top-3 w-96 z-50 animate-in fade-in slide-in-from-top-2 duration-150 drop-shadow-xl max-lg:left-auto max-lg:right-4 max-lg:top-14">
             <AlertsPanel />
           </div>
         </>
