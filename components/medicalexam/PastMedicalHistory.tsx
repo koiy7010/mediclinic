@@ -3,6 +3,8 @@
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { CheckCheck } from 'lucide-react'
 
 const CONDITIONS = [
   'Allergies', 'Chickenpox', 'Diabetes', 'Epilepsy', 'Measles', 'Cancer',
@@ -10,6 +12,17 @@ const CONDITIONS = [
   'Hypertension', 'PTB', 'Vertigo', 'Psychological Disorder', 'Asthma', 'Arthritis',
   'Anemia', 'Migraine', 'Hyperlipidemia'
 ]
+
+const NORMAL_VALUES = {
+  conditions: {},
+  other_conditions: '',
+  present_illness: '',
+  medications: '',
+  allergies: '',
+  operations: '',
+  smoker: false,
+  alcohol: false,
+}
 
 export default function PastMedicalHistory({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
@@ -19,17 +32,36 @@ export default function PastMedicalHistory({ data, onChange }: { data: any; onCh
   return (
     <SectionCard title="Section I — Past Medical History">
       <div className="space-y-5">
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          <span className="font-semibold text-[hsl(var(--primary))]">✓ Checked</span> = Condition not present &nbsp;|&nbsp;
-          <span className="font-semibold text-[hsl(var(--destructive))]">Unchecked</span> = Flagged / Present
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {CONDITIONS.map(c => (
-            <label key={c} className="flex items-center gap-2 cursor-pointer group px-2 py-1.5 rounded-lg hover:bg-[hsl(var(--accent)/0.5)] transition-colors">
-              <Checkbox id={`cond-${c}`} checked={conditions[c] !== false} onCheckedChange={v => setCondition(c, v)} />
-              <span className="text-sm group-hover:text-[hsl(var(--foreground))] text-[hsl(var(--muted-foreground))]">{c}</span>
-            </label>
-          ))}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Check all conditions that apply to the patient.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
+            className="border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {CONDITIONS.map(c => {
+            const flagged = !!conditions[c]
+            return (
+              <label
+                key={c}
+                className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-lg border transition-colors ${
+                  flagged
+                    ? 'bg-[hsl(var(--destructive)/0.08)] border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))]'
+                    : 'border-transparent hover:bg-[hsl(var(--accent)/0.5)] text-[hsl(var(--muted-foreground))]'
+                }`}
+              >
+                <Checkbox
+                  id={`cond-${c}`}
+                  checked={flagged}
+                  onCheckedChange={v => setCondition(c, v)}
+                />
+                <span className="text-sm font-medium">{c}</span>
+              </label>
+            )
+          })}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[hsl(var(--border))]">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, X, User, Building2, Calendar } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { mockPatients } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
@@ -17,6 +17,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const { setSelectedPatient, setPanelOpen } = usePatient()
 
   const { data: patients = [] } = useQuery<any[]>({
@@ -33,18 +34,13 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
           (p.employer || '').toLowerCase().includes(q) ||
           (p.contact_number || '').toLowerCase().includes(q)
         )
-      }).slice(0, 10)
+      }).slice(0, 8)
     : [...(patients as any[])]
         .sort((a, b) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime())
-        .slice(0, 10)
+        .slice(0, 8)
 
-  useEffect(() => {
-    setActiveIndex(0)
-  }, [query])
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  useEffect(() => { setActiveIndex(0) }, [query])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   const handleSelect = useCallback((p: any) => {
     setSelectedPatient(p)
@@ -63,94 +59,86 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [results, activeIndex, handleSelect, onClose])
 
+  // Scroll active item into view
+  useEffect(() => {
+    const el = listRef.current?.children[activeIndex] as HTMLElement
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
+
   return (
     <div
-      className="fixed inset-0 z-100 flex flex-col items-center pt-24 px-4 pb-8"
-      style={{ backgroundColor: 'rgba(10, 15, 30, 0.75)', backdropFilter: 'blur(20px) saturate(180%)' }}
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      {/* Search box */}
-      <div className="w-full max-w-2xl">
-        <div className="flex items-center gap-4 rounded-2xl px-5 py-4 shadow-2xl border border-white/10"
-          style={{ backgroundColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)' }}
-        >
-          <Search className="w-6 h-6 text-white/70 shrink-0" />
+      <div className="w-full max-w-lg bg-[hsl(var(--card))] rounded-xl shadow-2xl border border-[hsl(var(--border))] overflow-hidden">
+        {/* Search input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))]">
+          <Search className="w-4 h-4 text-[hsl(var(--muted-foreground))] shrink-0" />
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search patient by name, employer…"
+            placeholder="Search patient…"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="flex-1 bg-transparent text-lg text-white placeholder:text-white/35 outline-none"
+            className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
           />
-          {query ? (
-            <button onClick={() => setQuery('')} className="p-1 rounded-md hover:bg-white/10 text-white/50 cursor-pointer">
-              <X className="w-5 h-5" />
+          {query && (
+            <button onClick={() => setQuery('')} className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] cursor-pointer">
+              <X className="w-4 h-4" />
             </button>
+          )}
+          <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] font-mono">esc</kbd>
+        </div>
+
+        {/* Results */}
+        <div ref={listRef} className="max-h-[50vh] overflow-y-auto">
+          {results.length > 0 ? (
+            <>
+              {!query.trim() && (
+                <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide px-4 pt-2">
+                  Recent
+                </p>
+              )}
+              {results.map((p: any, i: number) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelect(p)}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  className={`w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors ${
+                    i === activeIndex
+                      ? 'bg-[hsl(var(--primary))] text-white'
+                      : 'hover:bg-[hsl(var(--muted)/0.5)]'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {p.last_name}, {p.first_name}
+                    </p>
+                    <p className={`text-xs truncate ${i === activeIndex ? 'text-white/70' : 'text-[hsl(var(--muted-foreground))]'}`}>
+                      {p.employer || '—'} · {calcAge(p.birthdate)} yrs · {p.gender || '—'}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                    i === activeIndex ? 'bg-white/20 text-white/80' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'
+                  }`}>
+                    {p.id}
+                  </span>
+                </button>
+              ))}
+            </>
           ) : (
-            <button onClick={onClose} className="p-1 rounded-md hover:bg-white/10 text-white/50 cursor-pointer">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="px-4 py-8 text-center text-sm text-[hsl(var(--muted-foreground))]">
+              No patients found
+            </div>
           )}
         </div>
 
-        {/* Hint */}
-        <div className="flex items-center justify-center gap-4 mt-3 text-xs text-white/40">
-          <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 font-mono text-white/50">↑↓</kbd> navigate</span>
-          <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 font-mono text-white/50">Enter</kbd> select</span>
-          <span><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 font-mono text-white/50">Esc</kbd> close</span>
+        {/* Footer hint */}
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] text-[10px] text-[hsl(var(--muted-foreground))]">
+          <span>↑↓ navigate · enter select</span>
+          <span>{results.length} result{results.length !== 1 ? 's' : ''}</span>
         </div>
-      </div>
-
-      {/* Results */}
-      <div className="w-full max-w-2xl mt-6 space-y-2 overflow-y-auto max-h-[55vh]">
-        {results.length > 0 ? (
-          <>
-            {!query.trim() && (
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide px-1 mb-3">
-                Recent Patients (Top 10)
-              </p>
-            )}
-            {results.map((p: any, i: number) => (
-              <button
-                key={p.id}
-                onClick={() => handleSelect(p)}
-                onMouseEnter={() => setActiveIndex(i)}
-                style={i === activeIndex
-                  ? { backgroundColor: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))' }
-                  : { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }
-                }
-                className="w-full text-left rounded-xl px-5 py-4 transition-all flex items-center gap-4 border cursor-pointer hover:border-white/20"
-              >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-white/10">
-                  <User className="w-5 h-5 text-white/70" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate text-white">
-                    {p.last_name}, {p.first_name} {p.middle_name || ''}
-                  </p>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-white/50">
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3" />{p.employer || '—'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />{calcAge(p.birthdate)} yrs · {p.gender || '—'}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full shrink-0 bg-white/10 text-white/50">
-                  {p.id}
-                </span>
-              </button>
-            ))}
-          </>
-        ) : (
-          <div className="text-center py-12 text-white/40">
-            <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium text-white/60">No patients found for &quot;{query}&quot;</p>
-            <p className="text-sm mt-1">Try searching by last name, first name, or employer</p>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -177,12 +165,12 @@ export default function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-3 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)/0.8)] rounded-lg px-3 py-2.5 transition-colors group cursor-pointer"
+        className="w-full flex items-center gap-2 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)/0.8)] rounded-lg px-3 py-2 transition-colors cursor-pointer"
       >
-        <Search className="w-4 h-4 text-[hsl(var(--sidebar-foreground)/0.5)] group-hover:text-[hsl(var(--sidebar-foreground)/0.8)] shrink-0" />
-        <span className="flex-1 text-sm text-left text-[hsl(var(--sidebar-foreground)/0.4)]">Search patient…</span>
+        <Search className="w-4 h-4 text-[hsl(var(--sidebar-foreground)/0.5)] shrink-0" />
+        <span className="flex-1 text-sm text-left text-[hsl(var(--sidebar-foreground)/0.4)]">Search…</span>
         <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground)/0.3)] font-mono border border-[hsl(var(--sidebar-border))]">
-          Ctrl K
+          ⌘K
         </kbd>
       </button>
 

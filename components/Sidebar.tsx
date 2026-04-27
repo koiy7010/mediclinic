@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X } from 'lucide-react'
+import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 import GlobalSearch from '@/components/GlobalSearch'
+import { usePatient } from '@/lib/patient-context'
 
 const navItems = [
   { path: '/', label: 'Patient Profile', icon: Users },
@@ -18,6 +19,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { selectedPatient, setPanelOpen } = usePatient()
 
   return (
     <>
@@ -62,7 +64,23 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="px-6 py-4 border-t border-[hsl(var(--sidebar-border))]">
+        <div className="px-6 py-4 border-t border-[hsl(var(--sidebar-border))] space-y-3">
+          {selectedPatient && (
+            <button
+              onClick={() => setPanelOpen(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--primary)/0.2)] transition-colors text-left cursor-pointer"
+            >
+              <div className="w-6 h-6 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center shrink-0">
+                <UserCheck className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[hsl(var(--sidebar-foreground))] truncate">
+                  {selectedPatient.last_name}, {selectedPatient.first_name}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--sidebar-foreground)/0.5)] truncate">{selectedPatient.employer || 'No employer'}</p>
+              </div>
+            </button>
+          )}
           <p className="text-xs text-[hsl(var(--sidebar-foreground)/0.4)]">© 2026 MediClinic</p>
         </div>
       </aside>

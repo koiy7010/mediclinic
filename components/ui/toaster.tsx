@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import * as ToastPrimitive from "@radix-ui/react-toast"
-import { X } from "lucide-react"
+import { X, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToastStore } from "@/lib/use-toast"
 
 const ToastProvider = ToastPrimitive.Provider
 const ToastViewport = React.forwardRef<
@@ -12,7 +13,7 @@ const ToastViewport = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Viewport
     ref={ref}
-    className={cn("fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]", className)}
+    className={cn("fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-sm", className)}
     {...props}
   />
 ))
@@ -20,12 +21,15 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root> & { variant?: 'default' | 'success' | 'destructive' }
+>(({ className, variant = 'default', ...props }, ref) => (
   <ToastPrimitive.Root
     ref={ref}
     className={cn(
-      "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 pr-8 shadow-lg",
+      "group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-xl border p-4 pr-8 shadow-xl transition-all",
+      variant === 'success' && "bg-[hsl(var(--success-muted))] border-[hsl(var(--success)/0.3)] text-[hsl(var(--success))]",
+      variant === 'destructive' && "bg-[hsl(var(--destructive)/0.1)] border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))]",
+      variant === 'default' && "bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]",
       className
     )}
     {...props}
@@ -39,7 +43,7 @@ const ToastClose = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
-    className={cn("absolute right-2 top-2 rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]", className)}
+    className={cn("absolute right-2 top-2 rounded-md p-1 opacity-60 hover:opacity-100", className)}
     toast-close=""
     {...props}
   >
@@ -52,7 +56,7 @@ const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Title ref={ref} className={cn("text-sm font-semibold", className)} {...props} />
+  <ToastPrimitive.Title ref={ref} className={cn("text-sm font-semibold leading-tight", className)} {...props} />
 ))
 ToastTitle.displayName = ToastPrimitive.Title.displayName
 
@@ -60,13 +64,26 @@ const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <ToastPrimitive.Description ref={ref} className={cn("text-sm opacity-90", className)} {...props} />
+  <ToastPrimitive.Description ref={ref} className={cn("text-xs opacity-80 mt-0.5", className)} {...props} />
 ))
 ToastDescription.displayName = ToastPrimitive.Description.displayName
 
 function Toaster() {
+  const toasts = useToastStore()
+
   return (
     <ToastProvider>
+      {toasts.map(t => (
+        <Toast key={t.id} open={t.open} variant={t.variant}>
+          {t.variant === 'success' && <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />}
+          {t.variant === 'destructive' && <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <ToastTitle>{t.title}</ToastTitle>
+            {t.description && <ToastDescription>{t.description}</ToastDescription>}
+          </div>
+          <ToastClose />
+        </Toast>
+      ))}
       <ToastViewport />
     </ToastProvider>
   )

@@ -12,13 +12,56 @@ import PastMedicalHistory from '@/components/medicalexam/PastMedicalHistory'
 import PhysicalExamination from '@/components/medicalexam/PhysicalExamination'
 import LabDiagnosticSummary from '@/components/medicalexam/LabDiagnosticSummary'
 import Evaluation from '@/components/medicalexam/Evaluation'
-import { Save, Search, Stethoscope } from 'lucide-react'
+import { Save, Stethoscope, CheckCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { mockMedicalExams } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
-import { useSearch } from '@/lib/search-context'
+import { toast } from '@/lib/use-toast'
+import { useCtrlS } from '@/lib/use-ctrl-s'
+import NoPatientSelected from '@/components/NoPatientSelected'
 
 const BMI_CLASS = ['Normal', 'Overweight', 'Underweight', 'Obese Class I', 'Obese Class II', 'Obese Class III']
+
+const BODY_SYSTEMS = [
+  'Head / Scalp', 'Eyes', 'Ears', 'Nose', 'Neck / Throat',
+  'Chest / Breasts', 'Lungs', 'Heart', 'Abdomen', 'Back',
+  'Genitals', 'Extremities', 'Skin', 'Anus',
+]
+
+// Normal values for quick fill
+const NORMAL_PHYSICAL_EXAM = {
+  bp_systolic: '120',
+  bp_diastolic: '80',
+  pulse_rate: '72',
+  respiration: '18',
+  temperature: '36.5',
+  ishihara: 'Normal',
+  systems: BODY_SYSTEMS.reduce((acc, s) => ({ ...acc, [s]: { normal: true, findings: '' } }), {}),
+  visual_acuity: {
+    'OD (Right)_w/o Glasses': '20/20',
+    'OS (Left)_w/o Glasses': '20/20',
+    'OU (Both)_w/o Glasses': '20/20',
+  },
+}
+
+const NORMAL_LAB_SUMMARY = {
+  tests: {
+    'Hematology': { result: 'Normal', status: 'Normal' },
+    'Urinalysis': { result: 'Normal', status: 'Normal' },
+    'Fecalysis': { result: 'Normal', status: 'Normal' },
+    'Chest X-Ray': { result: 'Normal', status: 'Normal' },
+    'ECG': { result: 'Normal Sinus Rhythm', status: 'Normal' },
+    'HBsAg': { result: 'Non-Reactive', status: 'Normal' },
+    'Drug Test': { result: 'Negative', status: 'Normal' },
+  },
+}
+
+const NORMAL_EVALUATION = {
+  evaluation: 'A',
+  remarks: 'Fit for work',
+  recommendations: '',
+  for_clearance: false,
+}
 
 function calcBMI(weight: string, height: string) {
   const w = parseFloat(weight)
@@ -42,7 +85,6 @@ export default function MedicalExamination() {
   })
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
-  const { setOpen } = useSearch()
 
   useEffect(() => {
     if (selectedPatient) {
@@ -66,10 +108,14 @@ export default function MedicalExamination() {
 
   const saveMutation = useMutation({
     mutationFn: async () => form,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['medical-exams'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['medical-exams'] })
+      toast({ title: 'Medical examination saved', variant: 'success' })
+    },
   })
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
+  useCtrlS(() => saveMutation.mutate())
 
   function handleHeightWeight(k: string, v: string) {
     const updated = { ...form, [k]: v }
@@ -77,26 +123,25 @@ export default function MedicalExamination() {
     setForm(updated)
   }
 
+  function fillAllNormal() {
+    setForm((f: any) => ({
+      ...f,
+      bmi_classification: 'Normal',
+      past_history: { conditions: {}, smoker: false, alcohol: false },
+      physical_exam: NORMAL_PHYSICAL_EXAM,
+      lab_summary: NORMAL_LAB_SUMMARY,
+      evaluation: NORMAL_EVALUATION,
+    }))
+    toast({ title: 'Filled with normal values', variant: 'success' })
+  }
+
   if (!selectedPatient) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[hsl(var(--background))] gap-4 px-4">
-        <div className="w-14 h-14 rounded-full bg-[hsl(var(--primary)/0.1)] flex items-center justify-center">
-          <Stethoscope className="w-7 h-7 text-[hsl(var(--primary))]" />
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-[hsl(var(--foreground))]">No patient selected</p>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">Click Search Patient below to open the patient search overlay.</p>
-        </div>
-        <Button variant="outline" onClick={() => setOpen(true)}>
-          <Search className="w-4 h-4 mr-2" /> Search Patient
-        </Button>
-      </div>
-    )
+    return <NoPatientSelected icon={Stethoscope} label="Medical Exam" />
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-[hsl(var(--background))]">
-      <StickyPatientHeader patient={selectedPatient} />
+      <StickyPatientHeader patient={selectedPatient} module="Medical Exam" />
 
       <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
           <div className="flex items-center justify-between">
@@ -104,9 +149,16 @@ export default function MedicalExamination() {
               <Stethoscope className="w-5 h-5 text-[hsl(var(--primary))]" />
               <h2 className="text-lg font-bold">Medical Examination</h2>
             </div>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              <Save className="w-4 h-4 mr-2" />{saveMutation.isPending ? 'Saving…' : 'Save Examination'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Ctrl+S to save</span>
+              <Button variant="outline" size="sm" onClick={fillAllNormal}
+                className="border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+                <CheckCheck className="w-4 h-4 mr-1.5" /> All Normal
+              </Button>
+              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                <Save className="w-4 h-4 mr-2" />{saveMutation.isPending ? 'Saving…' : 'Save Examination'}
+              </Button>
+            </div>
           </div>
 
             <SectionCard title="Patient Information">

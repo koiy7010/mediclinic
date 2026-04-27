@@ -6,10 +6,13 @@ import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, Search, ScanLine } from 'lucide-react'
+import { Save, ScanLine } from 'lucide-react'
 import { format } from 'date-fns'
 import { usePatient } from '@/lib/patient-context'
-import { useSearch } from '@/lib/search-context'
+import { NormalToggle } from '@/components/ui/NormalToggle'
+import { toast } from '@/lib/use-toast'
+import { useCtrlS } from '@/lib/use-ctrl-s'
+import NoPatientSelected from '@/components/NoPatientSelected'
 
 const TEMPLATES = [
   { label: 'Normal Abdomen UTZ', findings: 'The liver is normal in size and echogenicity. No focal hepatic lesions. The gallbladder is normal. No calculi or wall thickening. The pancreas is not well visualized. The spleen is normal. Both kidneys are normal in size, shape, and echogenicity. No hydronephrosis or calculi. The urinary bladder is well-distended, with smooth walls and no intraluminal lesion.', impression: 'Normal abdominal ultrasound.' },
@@ -25,33 +28,24 @@ function calcAge(birthdate: string) {
 
 export default function UtzReport() {
   const [form, setForm] = useState({ report_title: 'Whole Abdomen UTZ', result_date: format(new Date(), 'yyyy-MM-dd'), examination_type: 'Ultrasound', xray_no: '', findings: '', impression: '', is_normal: null as boolean | null })
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
-  const { setOpen } = useSearch()
 
-  const saveMutation = useMutation({ mutationFn: async () => form, onSuccess: () => qc.invalidateQueries({ queryKey: ['radiology'] }) })
+  const saveMutation = useMutation({ mutationFn: async () => form, onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['radiology'] })
+    toast({ title: 'UTZ report saved', variant: 'success' })
+  }})
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
+  useCtrlS(() => saveMutation.mutate())
 
   if (!selectedPatient) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[hsl(var(--background))] gap-4 px-4">
-        <div className="w-14 h-14 rounded-full bg-[hsl(var(--primary)/0.1)] flex items-center justify-center">
-          <ScanLine className="w-7 h-7 text-[hsl(var(--primary))]" />
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-[hsl(var(--foreground))]">No patient selected</p>
-          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">Click Search Patient below to open the patient search overlay.</p>
-        </div>
-        <Button variant="outline" onClick={() => setOpen(true)}>
-          <Search className="w-4 h-4 mr-2" /> Search Patient
-        </Button>
-      </div>
-    )
+    return <NoPatientSelected icon={ScanLine} label="UTZ" />
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-[hsl(var(--background))]">
-      <StickyPatientHeader patient={selectedPatient} />
+      <StickyPatientHeader patient={selectedPatient} module="UTZ" />
       <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -82,7 +76,13 @@ export default function UtzReport() {
           <div className="mb-4">
             <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-2">Quick Templates</p>
             <div className="flex flex-wrap gap-2">
-              {TEMPLATES.map(t => <Button key={t.label} variant="outline" size="sm" onClick={() => { set('findings', t.findings); set('impression', t.impression) }}>{t.label}</Button>)}
+              {TEMPLATES.map(t => (
+                <Button key={t.label} variant="outline" size="sm"
+                  onClick={() => { set('findings', t.findings); set('impression', t.impression); setActiveTemplate(t.label) }}
+                  className={activeTemplate === t.label ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]' : ''}>
+                  {t.label}
+                </Button>
+              ))}
             </div>
           </div>
           <FormField label="Findings" required className="mb-4">
@@ -94,14 +94,7 @@ export default function UtzReport() {
               className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-none transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md" placeholder="Clinical impression…" />
           </FormField>
           <div className="flex items-center gap-4">
-            <p className="text-sm font-medium">Normal?</p>
-            {['Yes', 'No'].map(opt => (
-              <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="utz_normal" value={opt} checked={form.is_normal === (opt === 'Yes')} onChange={() => set('is_normal', opt === 'Yes')} className="w-4 h-4 accent-[hsl(var(--primary))]" />
-                <span className="text-sm font-medium">{opt}</span>
-              </label>
-            ))}
-            <Button variant="ghost" size="sm" className="text-[hsl(var(--muted-foreground))]" onClick={() => set('is_normal', null)}>✕ Clear</Button>
+            <NormalToggle value={form.is_normal} onChange={v => set('is_normal', v)} name="utz_normal" />
           </div>
         </SectionCard>
       </div>

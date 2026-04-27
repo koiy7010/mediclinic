@@ -2,15 +2,23 @@
 
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import { CheckCheck } from 'lucide-react'
 
 const EVALUATIONS = [
-  { value: 'A', label: 'Class A — Fit for work' },
-  { value: 'B', label: 'Class B — Fit with minor defects' },
-  { value: 'C', label: "Class C — At management's discretion" },
-  { value: 'pending', label: 'Pending' },
+  { value: 'A', label: 'Class A — Fit for work', color: 'bg-[hsl(var(--success-muted))] border-[hsl(var(--success)/0.4)] text-[hsl(var(--success))]' },
+  { value: 'B', label: 'Class B — Fit with minor defects', color: 'bg-yellow-50 border-yellow-300 text-yellow-700' },
+  { value: 'C', label: "Class C — At management's discretion", color: 'bg-orange-50 border-orange-300 text-orange-700' },
+  { value: 'pending', label: 'Pending', color: 'bg-[hsl(var(--muted))] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]' },
 ]
+
+const NORMAL_VALUES = {
+  evaluation: 'A',
+  remarks: 'Fit for work',
+  recommendations: '',
+  for_clearance: false,
+}
 
 export default function Evaluation({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
@@ -18,25 +26,30 @@ export default function Evaluation({ data, onChange }: { data: any; onChange: (v
   return (
     <SectionCard title="Section IV — Evaluation">
       <div className="space-y-4 max-w-2xl">
-        <FormField label="Evaluation">
-          <Select value={data.evaluation || ''} onValueChange={v => set('evaluation', v)}>
-            <SelectTrigger><SelectValue placeholder="Select evaluation class…" /></SelectTrigger>
-            <SelectContent>
-              {EVALUATIONS.map(e => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        {data.evaluation && (
-          <div className={`px-4 py-3 rounded-lg border text-sm font-semibold ${
-            data.evaluation === 'A' ? 'bg-[hsl(var(--success-muted))] border-[hsl(var(--success)/0.3)] text-[hsl(var(--success))]' :
-            data.evaluation === 'B' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-            data.evaluation === 'C' ? 'bg-orange-50 border-orange-200 text-orange-700' :
-            'bg-[hsl(var(--muted))] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'
-          }`}>
-            {EVALUATIONS.find(e => e.value === data.evaluation)?.label}
-          </div>
-        )}
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Evaluation Class</p>
+          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
+            className="border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Class A
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {EVALUATIONS.map(e => (
+            <button
+              key={e.value}
+              type="button"
+              onClick={() => set('evaluation', data.evaluation === e.value ? '' : e.value)}
+              className={`px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all text-left cursor-pointer ${
+                data.evaluation === e.value
+                  ? e.color + ' shadow-sm ring-2 ring-offset-1 ring-current'
+                  : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent)/0.5)]'
+              }`}
+            >
+              {e.label}
+            </button>
+          ))}
+        </div>
 
         <FormField label="Remarks">
           <Input value={data.remarks || ''} onChange={e => set('remarks', e.target.value)} placeholder="Additional remarks…" />

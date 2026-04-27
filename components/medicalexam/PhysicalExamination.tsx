@@ -4,6 +4,7 @@ import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { CheckCheck } from 'lucide-react'
 
 const BODY_SYSTEMS = [
   'Head / Scalp', 'Eyes', 'Ears', 'Nose', 'Neck / Throat',
@@ -12,6 +13,21 @@ const BODY_SYSTEMS = [
 ]
 const VA_ROWS = ['OD (Right)', 'OS (Left)', 'OU (Both)']
 const VA_COLS = ['w/o Glasses', 'w/ Glasses', 'Near']
+
+const NORMAL_VALUES = {
+  bp_systolic: '120',
+  bp_diastolic: '80',
+  pulse_rate: '72',
+  respiration: '18',
+  temperature: '36.5',
+  ishihara: 'Normal',
+  systems: BODY_SYSTEMS.reduce((acc, s) => ({ ...acc, [s]: { normal: true, findings: '' } }), {}),
+  visual_acuity: {
+    'OD (Right)_w/o Glasses': '20/20',
+    'OS (Left)_w/o Glasses': '20/20',
+    'OU (Both)_w/o Glasses': '20/20',
+  },
+}
 
 export default function PhysicalExamination({ data, patient, onChange }: { data: any; patient: any; onChange: (v: any) => void }) {
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
@@ -22,6 +38,12 @@ export default function PhysicalExamination({ data, patient, onChange }: { data:
 
   return (
     <SectionCard title="Section II — Physical Examination">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" size="sm" onClick={() => onChange({ ...data, ...NORMAL_VALUES })}
+          className="border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+          <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
+        </Button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Body Systems</p>

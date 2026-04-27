@@ -20,9 +20,10 @@ interface LastVisitInfo {
 interface Props {
   patient: Patient
   extra?: LastVisitInfo | null
+  module?: string
 }
 
-export default function StickyPatientHeader({ patient, extra }: Props) {
+export default function StickyPatientHeader({ patient, extra, module }: Props) {
   if (!patient) return null
 
   const calcAge = (birthdate?: string) => {
@@ -34,6 +35,13 @@ export default function StickyPatientHeader({ patient, extra }: Props) {
   return (
     <div className="sticky top-0 z-30 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-md">
       <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-6">
+        {module && (
+          <>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 hidden sm:inline">{module}</span>
+            <div className="w-px h-6 bg-white/20 hidden sm:block" />
+          </>
+        )}
+
         <div className="flex items-center gap-2">
           <User className="w-4 h-4 opacity-75" />
           <div>

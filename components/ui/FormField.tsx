@@ -30,8 +30,8 @@ export function SectionCard({ title, className, children }: SectionCardProps) {
   return (
     <div className={cn("bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-sm overflow-hidden transition-shadow hover:shadow-md", className)}>
       {title && (
-        <div className="px-5 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)]">
-          <h3 className="text-sm font-semibold text-[hsl(var(--foreground))]">{title}</h3>
+        <div className="px-5 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--primary)/0.1)]">
+          <h3 className="text-sm font-semibold text-[hsl(var(--primary))]">{title}</h3>
         </div>
       )}
       <div className="p-5">{children}</div>

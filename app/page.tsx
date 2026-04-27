@@ -11,6 +11,8 @@ import { format } from 'date-fns'
 import { mockPatients, mockLabReports } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
+import { toast } from '@/lib/use-toast'
+import { useCtrlS } from '@/lib/use-ctrl-s'
 
 const NATIONALITIES = ['Filipino', 'American', 'Japanese', 'Korean', 'Chinese', 'British', 'Australian', 'Canadian', 'Other']
 const MARITAL = ['Single', 'Married', 'Separated', 'Divorced', 'Widowed', 'Widower']
@@ -32,6 +34,7 @@ export default function PatientProfile() {
   const [form, setForm] = useState<any>(emptyForm)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [isDirty, setIsDirty] = useState(false)
   const qc = useQueryClient()
   const { selectedPatient, setSelectedPatient } = usePatient()
 
@@ -40,6 +43,7 @@ export default function PatientProfile() {
       setForm({ ...emptyForm, ...selectedPatient })
       setSelectedId(selectedPatient.id)
       setError('')
+      setIsDirty(false)
     }
   }, [selectedPatient])
 
@@ -55,6 +59,8 @@ export default function PatientProfile() {
       qc.invalidateQueries({ queryKey: ['patients'] })
       if (!selectedId) setSelectedId(res.id)
       setError('')
+      setIsDirty(false)
+      toast({ title: 'Patient profile saved', variant: 'success' })
     },
   })
 
@@ -63,6 +69,7 @@ export default function PatientProfile() {
     setForm(emptyForm)
     setSelectedPatient(null)
     setError('')
+    setIsDirty(false)
   }
 
   function handleSave() {
@@ -73,7 +80,12 @@ export default function PatientProfile() {
     saveMutation.mutate(form)
   }
 
-  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
+  const set = (k: string, v: any) => {
+    setForm((f: any) => ({ ...f, [k]: v }))
+    setIsDirty(true)
+  }
+
+  useCtrlS(handleSave)
 
   const lastVisit = (labHistory as any[]).length > 0
     ? [...(labHistory as any[])].sort((a, b) => new Date(b.result_date).getTime() - new Date(a.result_date).getTime())[0]
@@ -96,7 +108,15 @@ export default function PatientProfile() {
                 <User className="w-5 h-5 text-[hsl(var(--primary))]" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[hsl(var(--foreground))]">Patient Profile</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-[hsl(var(--foreground))]">Patient Profile</h1>
+                  {isDirty && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                      Unsaved
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">{selectedId ? `ID: ${selectedId}` : 'New Record'}</p>
               </div>
             </div>
