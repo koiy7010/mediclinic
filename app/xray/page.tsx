@@ -19,6 +19,8 @@ import { AutoSaveIndicator } from '@/components/ui/AutoSaveIndicator'
 import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
+import { FileUpload } from '@/components/ui/FileUpload'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
 
 const TEMPLATES = [
@@ -51,8 +53,10 @@ export default function XRayReport() {
   })
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
+  const [uploadedImages, setUploadedImages] = useState<File[]>([])
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     if (selectedPatient) {
@@ -79,9 +83,20 @@ export default function XRayReport() {
     setIsDirty(true)
   }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    // Validate required fields
+    if (!form.findings || !form.impression) {
+      const proceed = await confirm({
+        title: 'Missing Required Fields',
+        message: 'Findings and Impression are required. Do you want to save anyway?',
+        confirmLabel: 'Save Anyway',
+        cancelLabel: 'Go Back',
+        variant: 'warning',
+      })
+      if (!proceed) return
+    }
     saveMutation.mutate()
-  }, [saveMutation])
+  }, [saveMutation, form, confirm])
 
   useCtrlS(handleSave)
 
@@ -100,6 +115,17 @@ export default function XRayReport() {
     set('impression', template.impression)
     set('is_normal', template.isNormal)
     setActiveTemplate(template.label)
+  }
+
+  const handleImageUpload = async (files: File[]) => {
+    setUploadedImages(prev => [...prev, ...files])
+    setIsDirty(true)
+    toast({ title: `${files.length} image(s) attached`, variant: 'success' })
+  }
+
+  const handleImageRemove = (fileId: string) => {
+    // In a real app, this would remove from storage
+    toast({ title: 'Image removed', variant: 'default' })
   }
 
   if (!selectedPatient) {
@@ -183,6 +209,23 @@ export default function XRayReport() {
 
           <NormalToggle value={form.is_normal} onChange={v => set('is_normal', v)} name="xray_normal" />
         </SectionCard>
+
+        {/* Image Attachments */}
+        <SectionCard title="X-Ray Images">
+          <FileUpload
+            accept="image/*,.dcm"
+            multiple={true}
+            maxSize={20}
+            maxFiles={5}
+            onUpload={handleImageUpload}
+            onRemove={handleImageRemove}
+            label="Attach X-Ray Images"
+            hint="Drag and drop X-ray images here, or click to browse. Supports JPEG, PNG, and DICOM files."
+          />
+          <p className="mt-3 text-xs text-[hsl(var(--muted-foreground))]">
+            Note: For DICOM files, a specialized viewer may be required for full functionality.
+          </p>
+        </SectionCard>
       </div>
 
       {/* Floating action bar */}
@@ -190,6 +233,9 @@ export default function XRayReport() {
         onSave={handleSave}
         saving={saveMutation.isPending}
       />
+      
+      {/* Confirm dialog */}
+      {ConfirmDialog}
     </div>
   )
 }

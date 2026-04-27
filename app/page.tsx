@@ -20,6 +20,10 @@ import { SectionProgress } from '@/components/ui/ProgressIndicator'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useRecentPatients } from '@/components/ui/RecentPatients'
 import { useSearch } from '@/lib/search-context'
+import PatientTimeline, { type TimelineEvent } from '@/components/ui/PatientTimeline'
+import { mockLabData, mockRadiologyReports, mockMedicalExams } from '@/lib/mockData'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { Clock } from 'lucide-react'
 
 const NATIONALITIES = ['Filipino', 'American', 'Japanese', 'Korean', 'Chinese', 'British', 'Australian', 'Canadian', 'Other']
 const MARITAL = ['Single', 'Married', 'Separated', 'Divorced', 'Widowed', 'Widower']
@@ -64,10 +68,12 @@ export default function PatientProfile() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isDirty, setIsDirty] = useState(false)
+  const [showTimeline, setShowTimeline] = useState(false)
   const qc = useQueryClient()
   const { selectedPatient, setSelectedPatient } = usePatient()
   const { addRecentPatient } = useRecentPatients()
   const { setOpen: setSearchOpen } = useSearch()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     if (selectedPatient) {
@@ -104,11 +110,29 @@ export default function PatientProfile() {
   })
 
   function handleNew() {
-    setSelectedId(null)
-    setForm(emptyForm)
-    setSelectedPatient(null)
-    setError('')
-    setIsDirty(false)
+    if (isDirty) {
+      confirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Are you sure you want to create a new patient? Your changes will be lost.',
+        confirmLabel: 'Discard Changes',
+        cancelLabel: 'Keep Editing',
+        variant: 'warning',
+      }).then((confirmed) => {
+        if (confirmed) {
+          setSelectedId(null)
+          setForm(emptyForm)
+          setSelectedPatient(null)
+          setError('')
+          setIsDirty(false)
+        }
+      })
+    } else {
+      setSelectedId(null)
+      setForm(emptyForm)
+      setSelectedPatient(null)
+      setError('')
+      setIsDirty(false)
+    }
   }
 
   const handleSave = useCallback(() => {
@@ -181,6 +205,63 @@ export default function PatientProfile() {
     if (labHistory.length === 0) return 'pending'
     return 'complete'
   }
+
+  // Build timeline events from all patient data
+  const buildTimelineEvents = (): TimelineEvent[] => {
+    if (!selectedId) return []
+    
+    const events: TimelineEvent[] = []
+    
+    // Add lab reports
+    const patientLabData = mockLabData[selectedId] || {}
+    Object.entries(patientLabData).forEach(([testType, data]: [string, any]) => {
+      if (data.result_date) {
+        events.push({
+          id: `lab_${testType}_${data.result_date}`,
+          type: 'lab',
+          subtype: testType,
+          date: data.result_date,
+          title: `Laboratory - ${testType}`,
+          summary: data.remark || (data.is_normal ? 'Results within normal range' : 'Abnormal findings'),
+          isNormal: data.is_normal,
+          data,
+        })
+      }
+    })
+    
+    // Add radiology reports
+    const radiologyReports = mockRadiologyReports[selectedId] || []
+    radiologyReports.forEach((report: any) => {
+      events.push({
+        id: report.id,
+        type: 'xray',
+        subtype: report.examination_type,
+        date: report.result_date,
+        title: report.report_title,
+        summary: report.impression,
+        isNormal: report.is_normal,
+        data: report,
+      })
+    })
+    
+    // Add medical exams
+    const medicalExam = mockMedicalExams[selectedId]
+    if (medicalExam) {
+      events.push({
+        id: `exam_${medicalExam.result_date}`,
+        type: 'medical-exam',
+        date: medicalExam.result_date,
+        title: 'Medical Examination',
+        summary: medicalExam.remarks || `Evaluation: ${medicalExam.evaluation}`,
+        isNormal: medicalExam.evaluation === 'A',
+        data: medicalExam,
+      })
+    }
+    
+    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }
+
+  const timelineEvents = buildTimelineEvents()
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] pb-24">
@@ -328,39 +409,59 @@ export default function PatientProfile() {
 
           <SectionCard title="Lab Test History">
             {selectedId ? (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[hsl(var(--muted)/0.5)]">
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Test</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Remark</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Status</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(labHistory as any[]).map((r: any, i: number) => (
-                    <tr key={r.id} className={`transition-colors hover:bg-[hsl(var(--accent)/0.4)] ${i % 2 === 0 ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--muted)/0.2)]'}`}>
-                      <td className="px-4 py-2">{r.report_type}</td>
-                      <td className="px-4 py-2 text-[hsl(var(--muted-foreground))]">{r.remarks || '—'}</td>
-                      <td className="px-4 py-2">
-                        {r.is_normal !== undefined && (
-                          <StatusBadge 
-                            status={r.is_normal ? 'complete' : 'abnormal'} 
-                            label={r.is_normal ? 'Normal' : 'Abnormal'}
-                            size="sm" 
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-[hsl(var(--muted-foreground))]">
-                        {r.result_date ? format(new Date(r.result_date), 'MM/dd/yyyy') : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {labHistory.length === 0 && (
-                    <tr><td colSpan={4} className="text-center py-6 text-[hsl(var(--muted-foreground))]">No lab tests on record</td></tr>
-                  )}
-                </tbody>
-              </table>
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                    {labHistory.length} test{labHistory.length !== 1 ? 's' : ''} on record
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTimeline(!showTimeline)}
+                  >
+                    <Clock className="w-4 h-4 mr-1.5" />
+                    {showTimeline ? 'Table View' : 'Timeline View'}
+                  </Button>
+                </div>
+                
+                {showTimeline ? (
+                  <PatientTimeline events={timelineEvents} />
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[hsl(var(--muted)/0.5)]">
+                        <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Test</th>
+                        <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Remark</th>
+                        <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Status</th>
+                        <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(labHistory as any[]).map((r: any, i: number) => (
+                        <tr key={r.id} className={`transition-colors hover:bg-[hsl(var(--accent)/0.4)] cursor-pointer ${i % 2 === 0 ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--muted)/0.2)]'}`}>
+                          <td className="px-4 py-2">{r.report_type}</td>
+                          <td className="px-4 py-2 text-[hsl(var(--muted-foreground))]">{r.remarks || '—'}</td>
+                          <td className="px-4 py-2">
+                            {r.is_normal !== undefined && (
+                              <StatusBadge 
+                                status={r.is_normal ? 'complete' : 'abnormal'} 
+                                label={r.is_normal ? 'Normal' : 'Abnormal'}
+                                size="sm" 
+                              />
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-[hsl(var(--muted-foreground))]">
+                            {r.result_date ? format(new Date(r.result_date), 'MM/dd/yyyy') : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                      {labHistory.length === 0 && (
+                        <tr><td colSpan={4} className="text-center py-6 text-[hsl(var(--muted-foreground))]">No lab tests on record</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </>
             ) : (
               <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-4">Save patient first to view lab history</p>
             )}
@@ -373,6 +474,9 @@ export default function PatientProfile() {
         onSave={handleSave}
         saving={saveMutation.isPending}
       />
+      
+      {/* Confirm dialog */}
+      {ConfirmDialog}
     </div>
   )
 }

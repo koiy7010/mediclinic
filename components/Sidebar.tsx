@@ -7,6 +7,8 @@ import { useState } from 'react'
 import EnhancedGlobalSearch from '@/components/EnhancedGlobalSearch'
 import { RecentPatientsDropdown } from '@/components/ui/RecentPatients'
 import { usePatient } from '@/lib/patient-context'
+import { NotificationBell } from '@/components/ui/AlertsPanel'
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 
 const navItems = [
   { path: '/', label: 'Patient Profile', icon: Users },
@@ -34,10 +36,11 @@ export default function Sidebar() {
           <div className="w-9 h-9 rounded-lg bg-[hsl(var(--primary))] flex items-center justify-center">
             <Activity className="w-5 h-5 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="font-semibold text-sm text-[hsl(var(--sidebar-foreground))]">MediClinic</p>
             <p className="text-xs text-[hsl(var(--sidebar-foreground)/0.6)]">Health Records System</p>
           </div>
+          <NotificationBell />
         </div>
 
         <div className="px-3 py-3 border-b border-[hsl(var(--sidebar-border))] space-y-2">
@@ -67,6 +70,9 @@ export default function Sidebar() {
         </nav>
 
         <div className="px-6 py-4 border-t border-[hsl(var(--sidebar-border))] space-y-3">
+          {/* Offline indicator */}
+          <OfflineIndicator className="mb-2" />
+          
           {selectedPatient && (
             <button
               onClick={() => setPanelOpen(true)}
@@ -98,6 +104,7 @@ export default function Sidebar() {
         <div className="flex-1">
           <EnhancedGlobalSearch />
         </div>
+        <NotificationBell />
       </header>
     </>
   )

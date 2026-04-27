@@ -6,6 +6,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { CheckCheck, Eraser, CircleCheck, CircleAlert, CircleMinus, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FollowUpReminder } from '@/components/ui/FollowUpReminder'
+import { usePatient } from '@/lib/patient-context'
 
 const EVALUATIONS = [
   { value: 'A', label: 'Class A', description: 'Fit for work', icon: CircleCheck, color: 'success' },
@@ -23,6 +25,7 @@ const NORMAL_VALUES = {
 
 export default function Evaluation({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
+  const { selectedPatient } = usePatient()
 
   const getColorClasses = (color: string, isSelected: boolean) => {
     if (!isSelected) {
@@ -115,8 +118,8 @@ export default function Evaluation({ data, onChange }: { data: any; onChange: (v
           </FormField>
         </div>
 
-        {/* For Clearance checkbox */}
-        <div className="pt-2">
+        {/* For Clearance checkbox and reminder */}
+        <div className="pt-2 flex flex-wrap items-start gap-4">
           <label className={cn(
             'inline-flex items-center gap-3 cursor-pointer px-4 py-3 rounded-xl border-2 transition-all',
             data.for_clearance 
@@ -129,6 +132,22 @@ export default function Evaluation({ data, onChange }: { data: any; onChange: (v
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Patient requires medical clearance</p>
             </div>
           </label>
+          
+          {/* Follow-up reminder button */}
+          {selectedPatient && data.for_clearance && (
+            <FollowUpReminder
+              patientId={selectedPatient.id}
+              patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
+              forClearance={true}
+            />
+          )}
+          
+          {selectedPatient && !data.for_clearance && (
+            <FollowUpReminder
+              patientId={selectedPatient.id}
+              patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
+            />
+          )}
         </div>
       </div>
     </SectionCard>
