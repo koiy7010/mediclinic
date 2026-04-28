@@ -1,11 +1,11 @@
 "use client"
 
-import { FormField, SectionCard } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
+import { CheckCheck, Eraser } from 'lucide-react'
 
 const colors = ['Yellow', 'Amber', 'Dark Yellow', 'Orange', 'Brown', 'Red', 'Colorless', 'Other']
 const trans = ['Clear', 'Slightly Turbid', 'Turbid', 'Cloudy']
@@ -22,14 +22,29 @@ const NORMAL_VALUES = {
   others: '', remark: '', is_normal: true,
 }
 
-function DropSelect({ value, onChange, options, placeholder = 'Select…' }: any) {
+function Drop({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <Select value={value || ''} onValueChange={onChange}>
-      <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
-      <SelectContent>
-        {options.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-      </SelectContent>
+      <SelectTrigger className="h-8 text-sm max-w-[220px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+      <SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
     </Select>
+  )
+}
+
+function TRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <tr className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+      <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%] whitespace-nowrap">{label}</td>
+      <td className="px-4 py-2.5 text-sm">{children}</td>
+    </tr>
+  )
+}
+
+function GroupHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+      <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">{children}</td>
+    </tr>
   )
 }
 
@@ -38,51 +53,60 @@ export default function UrinalysisTab({ data, onChange }: { data: any; onChange:
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end gap-4">
-        <FormField label="Result Date">
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase">Result Date</span>
           <input type="date" value={data.result_date || today} onChange={e => set('result_date', e.target.value)}
-            className="border border-[hsl(var(--input))] rounded-lg px-3 py-2 text-sm bg-[hsl(var(--card))] w-48 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md" />
-        </FormField>
-        <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
-          className="mb-0.5 border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
-          ✓ Fill Normal Values
-        </Button>
+            className="border border-[hsl(var(--input))] rounded px-2.5 py-1 text-sm bg-[hsl(var(--card))] w-44 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
+            className="h-7 text-xs border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
+            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Fill Normal
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onChange({ result_date: data.result_date || today })}
+            className="h-7 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">
+            <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        </div>
       </div>
 
-      <SectionCard title="Physical Examination">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Color"><DropSelect value={data.color} onChange={(v: string) => set('color', v)} options={colors} /></FormField>
-          <FormField label="Transparency"><DropSelect value={data.transparency} onChange={(v: string) => set('transparency', v)} options={trans} /></FormField>
-        </div>
-      </SectionCard>
+      {/* Table */}
+      <table className="w-full text-left">
+        <tbody>
+          <GroupHeader>Physical Examination</GroupHeader>
+          <TRow label="Color"><Drop value={data.color} onChange={v => set('color', v)} options={colors} /></TRow>
+          <TRow label="Transparency"><Drop value={data.transparency} onChange={v => set('transparency', v)} options={trans} /></TRow>
 
-      <SectionCard title="Chemical Examination">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <FormField label="Specific Gravity"><DropSelect value={data.specific_gravity} onChange={(v: string) => set('specific_gravity', v)} options={grads} /></FormField>
-          <FormField label="pH"><Input type="number" step="0.1" min="4" max="9" value={data.ph || ''} onChange={e => set('ph', e.target.value)} placeholder="5.0–8.0" /></FormField>
-          <FormField label="Glucose"><DropSelect value={data.glucose} onChange={(v: string) => set('glucose', v)} options={levels} /></FormField>
-          <FormField label="Protein"><DropSelect value={data.protein} onChange={(v: string) => set('protein', v)} options={levels} /></FormField>
-        </div>
-      </SectionCard>
+          <GroupHeader>Chemical Examination</GroupHeader>
+          <TRow label="Specific Gravity"><Drop value={data.specific_gravity} onChange={v => set('specific_gravity', v)} options={grads} /></TRow>
+          <TRow label="pH">
+            <Input type="number" step="0.1" min="4" max="9" value={data.ph || ''} onChange={e => set('ph', e.target.value)} placeholder="5.0–8.0" className="max-w-[220px] h-8 text-sm" />
+          </TRow>
+          <TRow label="Glucose"><Drop value={data.glucose} onChange={v => set('glucose', v)} options={levels} /></TRow>
+          <TRow label="Protein"><Drop value={data.protein} onChange={v => set('protein', v)} options={levels} /></TRow>
 
-      <SectionCard title="Microscopic Examination">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <FormField label="WBC / HPF"><Input value={data.wbc || ''} onChange={e => set('wbc', e.target.value)} placeholder="e.g. 0–2" /></FormField>
-          <FormField label="RBC / HPF"><Input value={data.rbc || ''} onChange={e => set('rbc', e.target.value)} placeholder="e.g. 0–2" /></FormField>
-          <FormField label="Epithelial Cells"><DropSelect value={data.epithelial} onChange={(v: string) => set('epithelial', v)} options={micro} /></FormField>
-          <FormField label="Mucus Threads"><DropSelect value={data.mucus} onChange={(v: string) => set('mucus', v)} options={micro} /></FormField>
-          <FormField label="Bacteria"><DropSelect value={data.bacteria} onChange={(v: string) => set('bacteria', v)} options={micro} /></FormField>
-          <FormField label="Amorphous Urates"><DropSelect value={data.amorphous_urates} onChange={(v: string) => set('amorphous_urates', v)} options={micro} /></FormField>
-          <FormField label="Amorphous Phosphates"><DropSelect value={data.amorphous_phosphates} onChange={(v: string) => set('amorphous_phosphates', v)} options={micro} /></FormField>
-          <FormField label="Others"><Input value={data.others || ''} onChange={e => set('others', e.target.value)} /></FormField>
-          <FormField label="Remark"><Input value={data.remark || ''} onChange={e => set('remark', e.target.value)} /></FormField>
-        </div>
-      </SectionCard>
+          <GroupHeader>Microscopic Examination</GroupHeader>
+          <TRow label="WBC / HPF"><Input value={data.wbc || ''} onChange={e => set('wbc', e.target.value)} placeholder="e.g. 0–2" className="max-w-[220px] h-8 text-sm" /></TRow>
+          <TRow label="RBC / HPF"><Input value={data.rbc || ''} onChange={e => set('rbc', e.target.value)} placeholder="e.g. 0–2" className="max-w-[220px] h-8 text-sm" /></TRow>
+          <TRow label="Epithelial Cells"><Drop value={data.epithelial} onChange={v => set('epithelial', v)} options={micro} /></TRow>
+          <TRow label="Mucus Threads"><Drop value={data.mucus} onChange={v => set('mucus', v)} options={micro} /></TRow>
+          <TRow label="Bacteria"><Drop value={data.bacteria} onChange={v => set('bacteria', v)} options={micro} /></TRow>
+          <TRow label="Amorphous Urates"><Drop value={data.amorphous_urates} onChange={v => set('amorphous_urates', v)} options={micro} /></TRow>
+          <TRow label="Amorphous Phosphates"><Drop value={data.amorphous_phosphates} onChange={v => set('amorphous_phosphates', v)} options={micro} /></TRow>
+          <TRow label="Others"><Input value={data.others || ''} onChange={e => set('others', e.target.value)} className="h-8 text-sm" /></TRow>
+          <TRow label="Remark"><Input value={data.remark || ''} onChange={e => set('remark', e.target.value)} className="h-8 text-sm" /></TRow>
+        </tbody>
+      </table>
 
-      <div className="flex items-center gap-2 pt-2">
-        <Checkbox id="normal-u" checked={!!data.is_normal} onCheckedChange={v => set('is_normal', v)} />
-        <label htmlFor="normal-u" className="text-sm font-semibold text-[hsl(var(--primary))] cursor-pointer px-2 py-1 rounded-lg hover:bg-[hsl(var(--accent)/0.5)] transition-colors">NORMAL</label>
+      {/* Footer */}
+      <div className="flex items-center gap-3 px-4 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)]">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={!!data.is_normal} onCheckedChange={v => set('is_normal', v)} />
+          <span className="text-sm font-semibold text-[hsl(var(--primary))]">Mark as NORMAL</span>
+        </label>
       </div>
     </div>
   )

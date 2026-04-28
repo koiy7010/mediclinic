@@ -1,11 +1,11 @@
 "use client"
 
-import { SectionCard } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { CheckCheck, Eraser } from 'lucide-react'
 
 const chem10Tests = [
   { key: 'fbs', label: 'FBS (Fasting Blood Sugar)', unit: 'mmol/L', ref: '3.9–6.1', normal: '5.0', min: 3.9, max: 6.1 },
@@ -23,7 +23,6 @@ const chem10Tests = [
 
 const NORMAL_VALUES = chem10Tests.reduce((acc: any, t) => {
   acc[t.key] = t.normal
-  acc[`${t.key}_remark`] = ''
   return acc
 }, { result_date: format(new Date(), 'yyyy-MM-dd'), is_normal: true })
 
@@ -37,95 +36,82 @@ function isInRange(value: string, min?: number, max?: number): boolean | null {
 export default function Chem10Tab({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
-
-  // Count how many values are out of range
-  const outOfRangeCount = chem10Tests.filter(t => {
-    const inRange = isInRange(data[t.key], t.min, t.max)
-    return inRange === false
-  }).length
+  const outOfRangeCount = chem10Tests.filter(t => isInRange(data[t.key], t.min, t.max) === false).length
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <label className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Result Date</label>
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[hsl(var(--muted-foreground))] uppercase">Result Date</span>
           <input type="date" value={data.result_date || today} onChange={e => set('result_date', e.target.value)}
-            className="mt-1 border border-[hsl(var(--input))] rounded-lg px-3 py-2 text-sm bg-[hsl(var(--card))] w-48 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md block" />
+            className="border border-[hsl(var(--input))] rounded px-2.5 py-1 text-sm bg-[hsl(var(--card))] w-44 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]" />
+          {outOfRangeCount > 0 && (
+            <span className="text-xs text-[hsl(var(--destructive))] font-medium ml-2">
+              {outOfRangeCount} value{outOfRangeCount > 1 ? 's' : ''} out of range
+            </span>
+          )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
-          className="mb-0.5 border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
-          ✓ Fill Normal Values
-        </Button>
-        {outOfRangeCount > 0 && (
-          <span className="text-xs text-[hsl(var(--destructive))] font-medium mb-1">
-            {outOfRangeCount} value{outOfRangeCount > 1 ? 's' : ''} out of range
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
+            className="h-7 text-xs border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
+            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Fill Normal
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onChange({ result_date: data.result_date || today })}
+            className="h-7 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">
+            <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        </div>
       </div>
 
-      <SectionCard title="Chemistry Panel (Chem 10)">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[hsl(var(--muted)/0.5)]">
-                <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Test</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-32">Result</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-24">Unit</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase">Reference Range</th>
-                <th className="text-center px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-16">Status</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase w-36">Remarks</th>
+      {/* Table */}
+      <table className="w-full text-left">
+        <thead>
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Test</th>
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-32">Result</th>
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-20">Unit</th>
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Reference</th>
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-12 text-center">✓</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chem10Tests.map(t => {
+            const inRange = isInRange(data[t.key], t.min, t.max)
+            return (
+              <tr key={t.key} className={cn(
+                "border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors",
+                inRange === false && "bg-[hsl(var(--destructive)/0.04)]"
+              )}>
+                <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))]">{t.label}</td>
+                <td className="px-4 py-2.5">
+                  <Input value={data[t.key] || ''} onChange={e => set(t.key, e.target.value)} placeholder="—"
+                    className={cn("h-8 text-sm",
+                      inRange === true && "border-[hsl(var(--success))]",
+                      inRange === false && "border-[hsl(var(--destructive))]"
+                    )} />
+                </td>
+                <td className="px-4 py-2.5 text-xs text-[hsl(var(--muted-foreground))]">{t.unit}</td>
+                <td className="px-4 py-2.5 text-xs text-[hsl(var(--muted-foreground))]">{t.ref}</td>
+                <td className="px-4 py-2.5 text-center">
+                  {inRange !== null && (
+                    <span className={cn("text-sm font-bold", inRange ? "text-[hsl(var(--success))]" : "text-[hsl(var(--destructive))]")}>
+                      {inRange ? '✓' : '!'}
+                    </span>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {chem10Tests.map((t, i) => {
-                const inRange = isInRange(data[t.key], t.min, t.max)
-                return (
-                  <tr key={t.key} className={cn(
-                    "transition-colors hover:bg-[hsl(var(--accent)/0.4)]",
-                    i % 2 === 0 ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--muted)/0.2)]',
-                    inRange === false && 'bg-[hsl(var(--destructive)/0.05)]'
-                  )}>
-                    <td className="px-4 py-2.5 font-medium">{t.label}</td>
-                    <td className="px-4 py-2.5">
-                      <Input 
-                        value={data[t.key] || ''} 
-                        onChange={e => set(t.key, e.target.value)} 
-                        className={cn(
-                          "h-8 text-sm",
-                          inRange === true && "border-[hsl(var(--success))]",
-                          inRange === false && "border-[hsl(var(--destructive))] bg-[hsl(var(--destructive)/0.05)]"
-                        )} 
-                        placeholder="—" 
-                      />
-                    </td>
-                    <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.unit}</td>
-                    <td className="px-4 py-2.5 text-[hsl(var(--muted-foreground))] text-xs">{t.ref}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      {inRange !== null && (
-                        <span className={cn(
-                          "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold",
-                          inRange 
-                            ? "bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))]" 
-                            : "bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]"
-                        )}>
-                          {inRange ? '✓' : '!'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Input value={data[`${t.key}_remark`] || ''} onChange={e => set(`${t.key}_remark`, e.target.value)} className="h-8 text-sm" placeholder="—" />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
+            )
+          })}
+        </tbody>
+      </table>
 
-      <div className="flex items-center gap-2 pt-2">
-        <Checkbox id="normal-c" checked={!!data.is_normal} onCheckedChange={v => set('is_normal', v)} />
-        <label htmlFor="normal-c" className="text-sm font-semibold text-[hsl(var(--primary))] cursor-pointer px-2 py-1 rounded-lg hover:bg-[hsl(var(--accent)/0.5)] transition-colors">NORMAL</label>
+      {/* Footer */}
+      <div className="flex items-center gap-3 px-4 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)]">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={!!data.is_normal} onCheckedChange={v => set('is_normal', v)} />
+          <span className="text-sm font-semibold text-[hsl(var(--primary))]">Mark as NORMAL</span>
+        </label>
       </div>
     </div>
   )

@@ -210,13 +210,13 @@ export default function LaboratoryReport() {
           label="Lab Tests Progress"
         />
 
-        <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-sm overflow-hidden">
+        <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] shadow-sm overflow-hidden">
           {/* Tab navigation */}
-          <div className="flex items-center border-b border-[hsl(var(--border))]">
+          <div className="flex items-center bg-[hsl(var(--muted))] border-b border-[hsl(var(--border))]">
             <button
               onClick={goToPrevTab}
               disabled={!hasPrevTab}
-              className="p-3 hover:bg-[hsl(var(--muted)/0.5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="p-3 hover:bg-[hsl(var(--accent)/0.5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
               title="Previous tab (Alt+←)"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -229,10 +229,10 @@ export default function LaboratoryReport() {
                 return (
                   <button key={t.id} onClick={() => setActiveTab(t.id)}
                     className={cn(
-                      "relative px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer flex items-center gap-1",
+                      "relative px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer flex items-center gap-1",
                       activeTab === t.id
-                        ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-[hsl(var(--accent)/0.3)]'
-                        : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted)/0.3)]'
+                        ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-[hsl(var(--card))]'
+                        : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent)/0.3)]'
                     )}>
                     <span className="hidden sm:inline text-[10px] text-[hsl(var(--muted-foreground))] mr-1">
                       {index + 1}
@@ -247,14 +247,14 @@ export default function LaboratoryReport() {
             <button
               onClick={goToNextTab}
               disabled={!hasNextTab}
-              className="p-3 hover:bg-[hsl(var(--muted)/0.5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="p-3 hover:bg-[hsl(var(--accent)/0.5)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
               title="Next tab (Alt+→)"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="p-5">
+          <div>
             {activeTab === 'Urinalysis' && <UrinalysisTab data={current} onChange={v => setData('Urinalysis', v)} />}
             {activeTab === 'Serology' && <SerologyTab data={current} onChange={v => setData('Serology', v)} />}
             {activeTab === 'Hematology' && <HematologyTab data={current} onChange={v => setData('Hematology', v)} />}
