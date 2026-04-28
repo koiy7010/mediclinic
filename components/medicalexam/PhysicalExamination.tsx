@@ -1,6 +1,5 @@
 "use client"
 
-import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
@@ -29,6 +28,21 @@ const NORMAL_VALUES = {
   },
 }
 
+function QuickActions({ onNormal, onClear }: { onNormal: () => void; onClear: () => void }) {
+  return (
+    <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
+      <Button variant="ghost" size="sm" onClick={onNormal}
+        className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
+        <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onClear}
+        className="rounded-none text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]">
+        <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
+      </Button>
+    </div>
+  )
+}
+
 export default function PhysicalExamination({ data, patient, onChange }: { data: any; patient: any; onChange: (v: any) => void }) {
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
   const systems = data.systems || {}
@@ -37,131 +51,170 @@ export default function PhysicalExamination({ data, patient, onChange }: { data:
   const setVA = (r: string, c: string, v: any) => set('visual_acuity', { ...va, [`${r}_${c}`]: v })
 
   return (
-    <SectionCard title="Section II — Physical Examination">
-      <div className="flex justify-end mb-4">
-        <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
-          <Button variant="ghost" size="sm" onClick={() => onChange({ ...data, ...NORMAL_VALUES })}
-            className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
-            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Normal
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onChange({})}
-            className="rounded-none text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]">
-            <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
-          </Button>
-        </div>
+    <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[hsl(var(--muted))] border-b border-[hsl(var(--border))]">
+        <h3 className="text-sm font-semibold text-[hsl(var(--primary))]">Section II — Physical Examination</h3>
+        <QuickActions onNormal={() => onChange({ ...data, ...NORMAL_VALUES })} onClear={() => onChange({})} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Body Systems</p>
-          <div className="space-y-2">
-            {BODY_SYSTEMS.map(s => {
-              const sys = systems[s] || {}
-              return (
-                <div key={s} className="flex items-center gap-3 p-2 rounded-lg border border-[hsl(var(--border)/0.5)] hover:bg-[hsl(var(--accent)/0.4)] hover:border-[hsl(var(--primary)/0.3)] transition-all">
-                  <Checkbox checked={!!sys.normal} onCheckedChange={v => setSystem(s, 'normal', v)} />
-                  <span className="text-sm font-medium w-32 flex-shrink-0">{s}</span>
-                  <Input value={sys.findings || ''} onChange={e => setSystem(s, 'findings', e.target.value)}
-                    disabled={!!sys.normal} placeholder={sys.normal ? 'Normal' : 'Findings…'} className="h-7 text-sm flex-1" />
-                </div>
-              )
-            })}
-          </div>
-        </div>
 
-        <div className="space-y-5">
-          <div className="bg-[hsl(var(--muted)/0.2)] rounded-xl border border-[hsl(var(--border))] p-4">
-            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Vital Signs</p>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="BP Systolic"><Input type="number" value={data.bp_systolic || ''} onChange={e => set('bp_systolic', e.target.value)} placeholder="mmHg" /></FormField>
-              <FormField label="BP Diastolic"><Input type="number" value={data.bp_diastolic || ''} onChange={e => set('bp_diastolic', e.target.value)} placeholder="mmHg" /></FormField>
-              <FormField label="Pulse Rate"><Input type="number" value={data.pulse_rate || ''} onChange={e => set('pulse_rate', e.target.value)} placeholder="bpm" /></FormField>
-              <FormField label="Respiration"><Input type="number" value={data.respiration || ''} onChange={e => set('respiration', e.target.value)} placeholder="cpm" /></FormField>
-              <FormField label="Temperature" className="col-span-2"><Input type="number" step="0.1" value={data.temperature || ''} onChange={e => set('temperature', e.target.value)} placeholder="°C" /></FormField>
-            </div>
-          </div>
+      <table className="w-full text-left">
+        <tbody>
+          {/* Vital Signs */}
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Vital Signs</td>
+          </tr>
+          {[
+            { label: 'BP Systolic (mmHg)', key: 'bp_systolic', placeholder: 'mmHg' },
+            { label: 'BP Diastolic (mmHg)', key: 'bp_diastolic', placeholder: 'mmHg' },
+            { label: 'Pulse Rate (bpm)', key: 'pulse_rate', placeholder: 'bpm' },
+            { label: 'Respiration (cpm)', key: 'respiration', placeholder: 'cpm' },
+            { label: 'Temperature (°C)', key: 'temperature', placeholder: '°C' },
+          ].map(f => (
+            <tr key={f.key} className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+              <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%] whitespace-nowrap">{f.label}</td>
+              <td className="px-4 py-2.5">
+                <Input type="number" step={f.key === 'temperature' ? '0.1' : undefined} value={data[f.key] || ''} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} className="max-w-[200px] h-8 text-sm" />
+              </td>
+            </tr>
+          ))}
 
-          <div className="bg-[hsl(var(--muted)/0.2)] rounded-xl border border-[hsl(var(--border))] p-4">
-            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Visual Acuity</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[hsl(var(--border))]">
-                    <th className="text-left pb-2 text-xs text-[hsl(var(--muted-foreground))]"></th>
-                    {VA_COLS.map(c => <th key={c} className="text-center pb-2 text-xs text-[hsl(var(--muted-foreground))] font-semibold">{c}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {VA_ROWS.map(r => (
-                    <tr key={r} className="border-b border-[hsl(var(--border)/0.3)] last:border-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
-                      <td className="py-2 text-xs font-medium text-[hsl(var(--muted-foreground))] pr-3">{r}</td>
-                      {VA_COLS.map(c => (
-                        <td key={c} className="py-2 px-1">
-                          <Input value={va[`${r}_${c}`] || ''} onChange={e => setVA(r, c, e.target.value)} className="h-7 text-xs text-center" placeholder="20/—" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Body Systems */}
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <td className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Body System</td>
+            <td className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
+              <div className="flex items-center gap-8">
+                <span className="w-16 text-center">Normal</span>
+                <span>Findings</span>
+              </div>
+            </td>
+          </tr>
+          {BODY_SYSTEMS.map(s => {
+            const sys = systems[s] || {}
+            return (
+              <tr key={s} className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+                <td className="px-4 py-2 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">{s}</td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-8">
+                    <div className="w-16 flex justify-center">
+                      <Checkbox checked={!!sys.normal} onCheckedChange={v => setSystem(s, 'normal', v)} />
+                    </div>
+                    <Input value={sys.findings || ''} onChange={e => setSystem(s, 'findings', e.target.value)}
+                      disabled={!!sys.normal} placeholder={sys.normal ? 'Normal' : 'Findings…'} className="h-7 text-sm flex-1" />
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
 
-          <div className="bg-[hsl(var(--muted)/0.2)] rounded-xl border border-[hsl(var(--border))] p-4">
-            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Ishihara Color Vision</p>
-            <div className="flex items-center gap-4">
-              {['Normal', 'Defective'].map(opt => (
-                <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="ishihara" value={opt} checked={data.ishihara === opt} onChange={() => set('ishihara', opt)} className="w-4 h-4 accent-[hsl(var(--primary))]" />
-                  <span className="text-sm font-medium">{opt}</span>
-                </label>
+      {/* Visual Acuity table */}
+      <table className="w-full text-left border-t border-[hsl(var(--border))]">
+        <thead>
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <th className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Visual Acuity</th>
+            {VA_COLS.map(c => <th key={c} className="px-3 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide text-center">{c}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {VA_ROWS.map(r => (
+            <tr key={r} className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+              <td className="px-4 py-2 text-sm font-medium text-[hsl(var(--muted-foreground))]">{r}</td>
+              {VA_COLS.map(c => (
+                <td key={c} className="px-3 py-2">
+                  <Input value={va[`${r}_${c}`] || ''} onChange={e => setVA(r, c, e.target.value)} className="h-7 text-xs text-center" placeholder="20/—" />
+                </td>
               ))}
-              <Button variant="ghost" size="sm" className="text-[hsl(var(--muted-foreground))] text-xs" onClick={() => set('ishihara', '')}>✕ Clear</Button>
-            </div>
-          </div>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Ishihara + OB/Gyne + Dental in table rows */}
+      <table className="w-full text-left border-t border-[hsl(var(--border))]">
+        <tbody>
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Ishihara Color Vision</td>
+          </tr>
+          <tr className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+            <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">Result</td>
+            <td className="px-4 py-2.5">
+              <div className="flex items-center gap-4">
+                {['Normal', 'Defective'].map(opt => (
+                  <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="ishihara" value={opt} checked={data.ishihara === opt} onChange={() => set('ishihara', opt)} className="w-4 h-4 accent-[hsl(var(--primary))]" />
+                    <span className="text-sm">{opt}</span>
+                  </label>
+                ))}
+                {data.ishihara && (
+                  <button type="button" onClick={() => set('ishihara', '')} className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] cursor-pointer">✕ Clear</button>
+                )}
+              </div>
+            </td>
+          </tr>
 
           {patient?.gender === 'Female' && (
-            <div className="bg-[hsl(var(--muted)/0.2)] rounded-xl border border-[hsl(var(--border))] p-4">
-              <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">OB / Gyne</p>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="LMP"><Input type="date" value={data.lmp || ''} onChange={e => set('lmp', e.target.value)} /></FormField>
-                <FormField label="OB Score"><Input value={data.ob_score || ''} onChange={e => set('ob_score', e.target.value)} placeholder="G_P_" /></FormField>
-                <FormField label="Interval"><Input value={data.interval || ''} onChange={e => set('interval', e.target.value)} /></FormField>
-                <FormField label="Duration"><Input value={data.duration || ''} onChange={e => set('duration', e.target.value)} /></FormField>
-                <FormField label="Dysmenorrhea" className="col-span-2"><Input value={data.dysmenorrhea || ''} onChange={e => set('dysmenorrhea', e.target.value)} /></FormField>
-              </div>
-            </div>
+            <>
+              <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+                <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">OB / Gyne</td>
+              </tr>
+              {[
+                { label: 'LMP', key: 'lmp', type: 'date' },
+                { label: 'OB Score', key: 'ob_score', placeholder: 'G_P_' },
+                { label: 'Interval', key: 'interval' },
+                { label: 'Duration', key: 'duration' },
+                { label: 'Dysmenorrhea', key: 'dysmenorrhea' },
+              ].map(f => (
+                <tr key={f.key} className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+                  <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">{f.label}</td>
+                  <td className="px-4 py-2.5">
+                    <Input type={f.type || 'text'} value={data[f.key] || ''} onChange={e => set(f.key, e.target.value)} placeholder={f.placeholder} className="max-w-[200px] h-8 text-sm" />
+                  </td>
+                </tr>
+              ))}
+            </>
           )}
 
-          <div className="bg-[hsl(var(--muted)/0.2)] rounded-xl border border-[hsl(var(--border))] p-4">
-            <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-3">Dental</p>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              {['Upper Right', 'Upper Left', 'Lower Right', 'Lower Left'].map(q => (
-                <FormField key={q} label={q}>
-                  <Input value={data[`dental_${q.toLowerCase().replace(' ', '_')}`] || ''}
-                    onChange={e => set(`dental_${q.toLowerCase().replace(' ', '_')}`, e.target.value)}
-                    placeholder="Tooth chart" className="h-8 text-sm" />
-                </FormField>
-              ))}
-            </div>
-            <div className="space-y-2">
-              {['Oral Prophylaxis', 'Fillings', 'Extraction'].map(item => (
-                <div key={item} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-[hsl(var(--accent)/0.4)] transition-colors">
+          {/* Dental */}
+          <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+            <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Dental</td>
+          </tr>
+          {['Upper Right', 'Upper Left', 'Lower Right', 'Lower Left'].map(q => (
+            <tr key={q} className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+              <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">{q}</td>
+              <td className="px-4 py-2.5">
+                <Input value={data[`dental_${q.toLowerCase().replace(' ', '_')}`] || ''}
+                  onChange={e => set(`dental_${q.toLowerCase().replace(' ', '_')}`, e.target.value)}
+                  placeholder="Tooth chart" className="max-w-[200px] h-8 text-sm" />
+              </td>
+            </tr>
+          ))}
+          {['Oral Prophylaxis', 'Fillings', 'Extraction'].map(item => (
+            <tr key={item} className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+              <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">
+                <div className="flex items-center gap-2">
                   <Checkbox checked={!!(data[`dental_${item.toLowerCase().replace(' ', '_')}`])}
                     onCheckedChange={v => set(`dental_${item.toLowerCase().replace(' ', '_')}`, v)} />
-                  <span className="text-sm w-32">{item}</span>
-                  <Input value={data[`dental_${item.toLowerCase().replace(' ', '_')}_detail`] || ''}
-                    onChange={e => set(`dental_${item.toLowerCase().replace(' ', '_')}_detail`, e.target.value)}
-                    className="h-7 text-sm flex-1" placeholder="Details…" />
+                  <span>{item}</span>
                 </div>
-              ))}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <FormField label="Others"><Input value={data.dental_others || ''} onChange={e => set('dental_others', e.target.value)} /></FormField>
-              <FormField label="Attending Dentist"><Input value={data.attending_dentist || ''} onChange={e => set('attending_dentist', e.target.value)} /></FormField>
-            </div>
-          </div>
-        </div>
-      </div>
-    </SectionCard>
+              </td>
+              <td className="px-4 py-2.5">
+                <Input value={data[`dental_${item.toLowerCase().replace(' ', '_')}_detail`] || ''}
+                  onChange={e => set(`dental_${item.toLowerCase().replace(' ', '_')}_detail`, e.target.value)}
+                  placeholder="Details…" className="h-8 text-sm" />
+              </td>
+            </tr>
+          ))}
+          <tr className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+            <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">Others</td>
+            <td className="px-4 py-2.5"><Input value={data.dental_others || ''} onChange={e => set('dental_others', e.target.value)} className="h-8 text-sm" /></td>
+          </tr>
+          <tr className="hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
+            <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">Attending Dentist</td>
+            <td className="px-4 py-2.5"><Input value={data.attending_dentist || ''} onChange={e => set('attending_dentist', e.target.value)} className="h-8 text-sm" /></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   )
 }

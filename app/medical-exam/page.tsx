@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
-import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -25,15 +24,8 @@ import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { SectionProgress } from '@/components/ui/ProgressIndicator'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
-import { Tooltip } from '@/components/ui/Tooltip'
 
 const BMI_CLASS = ['Normal', 'Overweight', 'Underweight', 'Obese Class I', 'Obese Class II', 'Obese Class III']
-
-const BODY_SYSTEMS = [
-  'Head / Scalp', 'Eyes', 'Ears', 'Nose', 'Neck / Throat',
-  'Chest / Breasts', 'Lungs', 'Heart', 'Abdomen', 'Back',
-  'Genitals', 'Extremities', 'Skin', 'Anus',
-]
 
 // Normal values for quick fill
 const NORMAL_PHYSICAL_EXAM = {
@@ -43,7 +35,11 @@ const NORMAL_PHYSICAL_EXAM = {
   respiration: '18',
   temperature: '36.5',
   ishihara: 'Normal',
-  systems: BODY_SYSTEMS.reduce((acc, s) => ({ ...acc, [s]: { normal: true, findings: '' } }), {}),
+  systems: [
+    'Head / Scalp', 'Eyes', 'Ears', 'Nose', 'Neck / Throat',
+    'Chest / Breasts', 'Lungs', 'Heart', 'Abdomen', 'Back',
+    'Genitals', 'Extremities', 'Skin', 'Anus',
+  ].reduce((acc, s) => ({ ...acc, [s]: { normal: true, findings: '' } }), {}),
   visual_acuity: {
     'OD (Right)_w/o Glasses': '20/20',
     'OS (Left)_w/o Glasses': '20/20',
@@ -88,6 +84,38 @@ function calcBMI(weight: string, height: string) {
 function calcAge(birthdate: string) {
   if (!birthdate) return '—'
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+}
+
+/* ── Reusable table row ── */
+function TableRow({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <tr className={`border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors ${className}`}>
+      <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%] align-middle whitespace-nowrap">{label}</td>
+      <td className="px-4 py-2.5 text-sm text-[hsl(var(--foreground))] align-middle">{children}</td>
+    </tr>
+  )
+}
+
+function TableHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <tr className="bg-[hsl(var(--muted))] border-b border-[hsl(var(--border))]">
+      <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--primary))] uppercase tracking-wide">{children}</td>
+    </tr>
+  )
+}
+
+function SectionTable({ title, id, actions, children }: { title: string; id?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div id={id} className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[hsl(var(--muted))] border-b border-[hsl(var(--border))]">
+        <h3 className="text-sm font-semibold text-[hsl(var(--primary))]">{title}</h3>
+        {actions}
+      </div>
+      <table className="w-full text-left">
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  )
 }
 
 export default function MedicalExamination() {
@@ -142,10 +170,7 @@ export default function MedicalExamination() {
   }, [saveMutation])
 
   useCtrlS(handleSave)
-
-  useGlobalShortcuts({
-    onSave: handleSave,
-  })
+  useGlobalShortcuts({ onSave: handleSave })
 
   function handleHeightWeight(k: string, v: string) {
     const updated = { ...form, [k]: v }
@@ -170,57 +195,23 @@ export default function MedicalExamination() {
   function clearAllFields() {
     setForm((f: any) => ({
       ...f,
-      height: '',
-      weight: '',
-      bmi: '',
-      bmi_classification: '',
-      past_history: {},
-      physical_exam: {},
-      lab_summary: {},
-      evaluation: {},
+      height: '', weight: '', bmi: '', bmi_classification: '',
+      past_history: {}, physical_exam: {}, lab_summary: {}, evaluation: {},
     }))
     setIsDirty(true)
     toast({ title: 'All fields cleared', variant: 'default' })
   }
 
   const handleAutoSave = useCallback(async () => {
-    if (isDirty) {
-      await saveMutation.mutateAsync()
-    }
+    if (isDirty) await saveMutation.mutateAsync()
   }, [isDirty, saveMutation])
 
-  // Calculate section completion
   const sections = [
-    { 
-      id: 'patient-info', 
-      label: 'Patient Info', 
-      completed: !!(form.height && form.weight),
-      hasError: false
-    },
-    { 
-      id: 'past-history', 
-      label: 'Past History', 
-      completed: Object.keys(form.past_history || {}).length > 0,
-      hasError: false
-    },
-    { 
-      id: 'physical-exam', 
-      label: 'Physical Exam', 
-      completed: !!(form.physical_exam?.bp_systolic),
-      hasError: false
-    },
-    { 
-      id: 'lab-summary', 
-      label: 'Lab Summary', 
-      completed: Object.keys(form.lab_summary?.tests || {}).length > 0,
-      hasError: false
-    },
-    { 
-      id: 'evaluation', 
-      label: 'Evaluation', 
-      completed: !!(form.evaluation?.evaluation),
-      hasError: false
-    },
+    { id: 'patient-info', label: 'Patient Info', completed: !!(form.height && form.weight), hasError: false },
+    { id: 'past-history', label: 'Past History', completed: Object.keys(form.past_history || {}).length > 0, hasError: false },
+    { id: 'physical-exam', label: 'Physical Exam', completed: !!(form.physical_exam?.bp_systolic), hasError: false },
+    { id: 'lab-summary', label: 'Lab Summary', completed: Object.keys(form.lab_summary?.tests || {}).length > 0, hasError: false },
+    { id: 'evaluation', label: 'Evaluation', completed: !!(form.evaluation?.evaluation), hasError: false },
   ]
 
   if (!selectedPatient) {
@@ -231,8 +222,7 @@ export default function MedicalExamination() {
     <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
       <StickyPatientHeader patient={selectedPatient} module="Medical Exam" />
 
-      <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
-        {/* Breadcrumb */}
+      <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-4">
         <PageBreadcrumb
           patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
           module="Medical Exam"
@@ -240,10 +230,8 @@ export default function MedicalExamination() {
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Stethoscope className="w-5 h-5 text-[hsl(var(--primary))]" />
-              <h2 className="text-lg font-bold">Medical Examination</h2>
-            </div>
+            <Stethoscope className="w-5 h-5 text-[hsl(var(--primary))]" />
+            <h2 className="text-lg font-bold">Medical Examination</h2>
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
@@ -262,81 +250,61 @@ export default function MedicalExamination() {
           </div>
         </div>
 
-        {/* Section progress */}
         <SectionProgress sections={sections} />
 
-        <SectionCard title="Patient Information" id="patient-info">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-            {[
-              { label: 'Company', val: selectedPatient.employer },
-              { label: 'Name', val: `${selectedPatient.last_name}, ${selectedPatient.first_name}` },
-              { label: 'Gender', val: selectedPatient.gender },
-              { label: 'Birthdate', val: selectedPatient.birthdate },
-              { label: 'Age', val: `${calcAge(selectedPatient.birthdate ?? '')} yrs` },
-            ].map(f => (
-              <div key={f.label}>
-                <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">{f.label}</p>
-                <p className="text-sm font-medium mt-1">{f.val || '—'}</p>
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <FormField label="Height (cm)">
-              <Input type="number" value={form.height} onChange={e => handleHeightWeight('height', e.target.value)} placeholder="cm" />
-            </FormField>
-            <FormField label="Weight (kg)">
-              <Input type="number" value={form.weight} onChange={e => handleHeightWeight('weight', e.target.value)} placeholder="kg" />
-            </FormField>
-            <FormField label="BMI">
-              <Tooltip content="Body Mass Index - calculated from height and weight">
-                <div className="px-3 py-2 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-sm font-semibold cursor-help">
-                  {form.bmi || '—'}
-                </div>
-              </Tooltip>
-            </FormField>
-            <FormField label="BMI Classification" className="col-span-2">
-              <Select value={form.bmi_classification} onValueChange={v => set('bmi_classification', v)}>
-                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>{BMI_CLASS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="SA No.">
-              <div className="px-3 py-2 rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-sm text-[hsl(var(--muted-foreground))]">{form.sa_no || '—'}</div>
-            </FormField>
-          </div>
-          <div className="mt-4 flex items-center gap-3">
-            <FormField label="Result Date">
-              <Input type="date" value={form.result_date} onChange={e => set('result_date', e.target.value)} disabled={form.use_current_date} className="w-48" />
-            </FormField>
-            <label className="flex items-center gap-2 cursor-pointer mt-5">
-              <Checkbox checked={!!form.use_current_date} onCheckedChange={v => { set('use_current_date', v); if (v) set('result_date', format(new Date(), 'yyyy-MM-dd')) }} />
-              <span className="text-sm">Use Current Date</span>
-            </label>
-          </div>
-        </SectionCard>
+        {/* Patient Information */}
+        <SectionTable title="Patient Information" id="patient-info">
+          <TableRow label="Company">{selectedPatient.employer || '—'}</TableRow>
+          <TableRow label="Name">{`${selectedPatient.last_name}, ${selectedPatient.first_name}`}</TableRow>
+          <TableRow label="Gender">{selectedPatient.gender || '—'}</TableRow>
+          <TableRow label="Birthdate">{selectedPatient.birthdate || '—'}</TableRow>
+          <TableRow label="Age">{`${calcAge(selectedPatient.birthdate ?? '')} yrs`}</TableRow>
+          <TableHeader>Measurements</TableHeader>
+          <TableRow label="Height (cm)">
+            <Input type="number" value={form.height} onChange={e => handleHeightWeight('height', e.target.value)} placeholder="cm" className="max-w-[200px] h-8 text-sm" />
+          </TableRow>
+          <TableRow label="Weight (kg)">
+            <Input type="number" value={form.weight} onChange={e => handleHeightWeight('weight', e.target.value)} placeholder="kg" className="max-w-[200px] h-8 text-sm" />
+          </TableRow>
+          <TableRow label="BMI">
+            <span className="font-semibold">{form.bmi || '—'}</span>
+          </TableRow>
+          <TableRow label="BMI Classification">
+            <Select value={form.bmi_classification} onValueChange={v => set('bmi_classification', v)}>
+              <SelectTrigger className="max-w-[200px] h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{BMI_CLASS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            </Select>
+          </TableRow>
+          <TableRow label="SA No."><span>{form.sa_no || '—'}</span></TableRow>
+          <TableRow label="Result Date">
+            <div className="flex items-center gap-3">
+              <Input type="date" value={form.result_date} onChange={e => set('result_date', e.target.value)} disabled={form.use_current_date} className="max-w-[200px] h-8 text-sm" />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={!!form.use_current_date} onCheckedChange={v => { set('use_current_date', v); if (v) set('result_date', format(new Date(), 'yyyy-MM-dd')) }} />
+                <span className="text-sm">Use Current Date</span>
+              </label>
+            </div>
+          </TableRow>
+        </SectionTable>
 
         <div id="past-history">
           <PastMedicalHistory data={form.past_history} onChange={v => set('past_history', v)} />
         </div>
-        
+
         <div id="physical-exam">
           <PhysicalExamination data={form.physical_exam} patient={selectedPatient} onChange={v => set('physical_exam', v)} />
         </div>
-        
+
         <div id="lab-summary">
           <LabDiagnosticSummary data={form.lab_summary} onChange={v => set('lab_summary', v)} />
         </div>
-        
+
         <div id="evaluation">
           <Evaluation data={form.evaluation} onChange={v => set('evaluation', v)} />
         </div>
       </div>
 
-      {/* Floating action bar */}
-      <FloatingActionBar
-        onSave={handleSave}
-        saving={saveMutation.isPending}
-      />
+      <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
     </div>
   )
 }
