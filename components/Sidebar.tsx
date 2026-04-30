@@ -30,7 +30,7 @@ export default function Sidebar() {
         fixed inset-y-0 left-0 z-50 w-64 bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] flex flex-col
         transform transition-transform duration-200
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:flex
+        md:translate-x-0 md:flex
       `}>
         <div className="flex items-center gap-3 px-6 py-5 border-b border-[hsl(var(--sidebar-border))]">
           <div className="w-9 h-9 rounded-lg bg-[hsl(var(--primary))] flex items-center justify-center">
@@ -94,10 +94,10 @@ export default function Sidebar() {
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))]">
+      <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-[hsl(var(--sidebar-background))] border-b border-[hsl(var(--sidebar-border))]">
         <button onClick={() => setMobileOpen(true)} className="p-2 rounded-md hover:bg-[hsl(var(--sidebar-accent))] cursor-pointer">
           <Menu className="w-5 h-5 text-[hsl(var(--sidebar-foreground))]" />
         </button>
