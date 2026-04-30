@@ -311,11 +311,18 @@ export default function PatientProfile() {
             <TRow label="Middle Name">
               <Input value={form.middle_name} onChange={e => set('middle_name', e.target.value)} placeholder="Middle name" className="max-w-[300px] h-8 text-sm" />
             </TRow>
+          </SectionTable>
+
+          {/* Contact & Employment */}
+          <SectionTable title="Contact & Employment" id="contact">
             <TRow label="Address">
               <Input value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full address" className="h-8 text-sm" />
             </TRow>
             <TRow label="Contact Number">
-              <Input value={form.contact_number} onChange={e => handlePhoneChange(e.target.value)} placeholder="+63 XXX XXX XXXX" className="max-w-[300px] h-8 text-sm" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-2 py-1 rounded font-mono shrink-0">🇵🇭 +63</span>
+                <Input value={form.contact_number} onChange={e => handlePhoneChange(e.target.value)} placeholder="XXX XXX XXXX" className="max-w-[260px] h-8 text-sm" />
+              </div>
             </TRow>
             <TRow label="Employer">
               <Input value={form.employer} onChange={e => set('employer', e.target.value)} placeholder="Company / Employer" className="max-w-[300px] h-8 text-sm" />
@@ -328,7 +335,7 @@ export default function PatientProfile() {
               <Input type="date" value={form.birthdate} onChange={e => set('birthdate', e.target.value)} className="max-w-[200px] h-8 text-sm" />
             </TRow>
             <TRow label="Age">
-              <span className="font-semibold">{form.birthdate ? `${calcAge(form.birthdate)} years old` : '—'}</span>
+              <span className="font-semibold text-[hsl(var(--foreground))] bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{form.birthdate ? `${calcAge(form.birthdate)} years old` : '—'}</span>
             </TRow>
             <TRow label="Gender">
               <Select value={form.gender} onValueChange={v => set('gender', v)}>
@@ -391,7 +398,7 @@ export default function PatientProfile() {
                   </thead>
                   <tbody>
                     {(labHistory as any[]).map((r: any) => (
-                      <tr key={r.id} className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors cursor-pointer">
+                      <tr key={r.id} className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
                         <td className="px-4 py-2.5 text-sm font-medium">{r.report_type}</td>
                         <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))]">{r.remarks || '—'}</td>
                         <td className="px-4 py-2.5">
