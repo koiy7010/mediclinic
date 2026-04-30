@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, User, Clock } from 'lucide-react'
+import { Plus, User, Clock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -95,6 +95,8 @@ export default function PatientProfile() {
   const [error, setError] = useState('')
   const [isDirty, setIsDirty] = useState(false)
   const [showTimeline, setShowTimeline] = useState(false)
+  const [isNewMode, setIsNewMode] = useState(false)
+  const prevPatientRef = useRef<any>(null)
   const qc = useQueryClient()
   const { selectedPatient, setSelectedPatient } = usePatient()
   const { addRecentPatient } = useRecentPatients()
@@ -107,6 +109,7 @@ export default function PatientProfile() {
       setSelectedId(selectedPatient.id)
       setError('')
       setIsDirty(false)
+      setIsNewMode(false)
     }
   }, [selectedPatient])
 
@@ -128,9 +131,20 @@ export default function PatientProfile() {
       if (!selectedId) setSelectedId(res.id)
       setError('')
       setIsDirty(false)
+      setIsNewMode(false)
       toast({ title: 'Patient profile saved', variant: 'success' })
     },
   })
+
+  function enterNewMode() {
+    prevPatientRef.current = selectedPatient
+    setSelectedId(null)
+    setForm(emptyForm)
+    setSelectedPatient(null)
+    setError('')
+    setIsDirty(false)
+    setIsNewMode(true)
+  }
 
   function handleNew() {
     if (isDirty) {
@@ -141,21 +155,25 @@ export default function PatientProfile() {
         cancelLabel: 'Keep Editing',
         variant: 'warning',
       }).then((confirmed) => {
-        if (confirmed) {
-          setSelectedId(null)
-          setForm(emptyForm)
-          setSelectedPatient(null)
-          setError('')
-          setIsDirty(false)
-        }
+        if (confirmed) enterNewMode()
       })
     } else {
-      setSelectedId(null)
+      enterNewMode()
+    }
+  }
+
+  function handleCancelNew() {
+    const prev = prevPatientRef.current
+    if (prev) {
+      setSelectedPatient(prev)
+    } else {
       setForm(emptyForm)
-      setSelectedPatient(null)
+      setSelectedId(null)
       setError('')
       setIsDirty(false)
     }
+    setIsNewMode(false)
+    prevPatientRef.current = null
   }
 
   const handleSave = useCallback(() => {
@@ -268,10 +286,16 @@ export default function PatientProfile() {
             </div>
             <div className="flex items-center gap-2">
               <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
-              <Button variant="outline" size="sm" onClick={handleNew} title="New Patient (Alt+N)">
-                <Plus className="w-4 h-4 mr-1" /> New
-                <kbd className="ml-2 text-[10px] px-1 py-0.5 rounded bg-[hsl(var(--muted))] font-mono hidden sm:inline">Alt+N</kbd>
-              </Button>
+              {isNewMode ? (
+                <Button variant="outline" size="sm" onClick={handleCancelNew} className="border-[hsl(var(--destructive)/0.5)] text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.1)]">
+                  <X className="w-4 h-4 mr-1" /> Cancel
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={handleNew} title="New Patient (Alt+N)">
+                  <Plus className="w-4 h-4 mr-1" /> New
+                  <kbd className="ml-2 text-[10px] px-1 py-0.5 rounded bg-[hsl(var(--muted))] font-mono hidden sm:inline">Alt+N</kbd>
+                </Button>
+              )}
             </div>
           </div>
 
