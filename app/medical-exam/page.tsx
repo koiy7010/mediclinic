@@ -81,6 +81,17 @@ function calcBMI(weight: string, height: string) {
   return (w / (h * h)).toFixed(1)
 }
 
+function classifyBMI(bmi: string): string {
+  const val = parseFloat(bmi)
+  if (isNaN(val)) return ''
+  if (val < 18.5) return 'Underweight'
+  if (val < 25) return 'Normal'
+  if (val < 30) return 'Overweight'
+  if (val < 35) return 'Obese Class I'
+  if (val < 40) return 'Obese Class II'
+  return 'Obese Class III'
+}
+
 function calcAge(birthdate: string) {
   if (!birthdate) return '—'
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
@@ -174,7 +185,9 @@ export default function MedicalExamination() {
 
   function handleHeightWeight(k: string, v: string) {
     const updated = { ...form, [k]: v }
-    updated.bmi = calcBMI(k === 'weight' ? v : form.weight, k === 'height' ? v : form.height)
+    const bmi = calcBMI(k === 'weight' ? v : form.weight, k === 'height' ? v : form.height)
+    updated.bmi = bmi
+    updated.bmi_classification = classifyBMI(bmi)
     setForm(updated)
     setIsDirty(true)
   }
@@ -252,13 +265,32 @@ export default function MedicalExamination() {
 
         <SectionProgress sections={sections} />
 
+        {/* Sticky section jump navigation */}
+        <div className="sticky top-[60px] z-20 bg-[hsl(var(--background)/0.95)] backdrop-blur-sm border-b border-[hsl(var(--border))] -mx-4 px-4 py-2 print:hidden">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            {sections.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  s.completed
+                    ? 'bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success)/0.2)]'
+                    : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]'
+                }`}
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Patient Information */}
         <SectionTable title="Patient Information" id="patient-info">
-          <TableRow label="Company">{selectedPatient.employer || '—'}</TableRow>
-          <TableRow label="Name">{`${selectedPatient.last_name}, ${selectedPatient.first_name}`}</TableRow>
-          <TableRow label="Gender">{selectedPatient.gender || '—'}</TableRow>
-          <TableRow label="Birthdate">{selectedPatient.birthdate || '—'}</TableRow>
-          <TableRow label="Age">{`${calcAge(selectedPatient.birthdate ?? '')} yrs`}</TableRow>
+          <TableRow label="Company"><span className="bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{selectedPatient.employer || '—'}</span></TableRow>
+          <TableRow label="Name"><span className="bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{`${selectedPatient.last_name}, ${selectedPatient.first_name}`}</span></TableRow>
+          <TableRow label="Gender"><span className="bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{selectedPatient.gender || '—'}</span></TableRow>
+          <TableRow label="Birthdate"><span className="bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{selectedPatient.birthdate || '—'}</span></TableRow>
+          <TableRow label="Age"><span className="bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{`${calcAge(selectedPatient.birthdate ?? '')} yrs`}</span></TableRow>
           <TableHeader>Measurements</TableHeader>
           <TableRow label="Height (cm)">
             <Input type="number" value={form.height} onChange={e => handleHeightWeight('height', e.target.value)} placeholder="cm" className="max-w-[200px] h-8 text-sm" />
@@ -267,13 +299,16 @@ export default function MedicalExamination() {
             <Input type="number" value={form.weight} onChange={e => handleHeightWeight('weight', e.target.value)} placeholder="kg" className="max-w-[200px] h-8 text-sm" />
           </TableRow>
           <TableRow label="BMI">
-            <span className="font-semibold">{form.bmi || '—'}</span>
+            <span className="font-semibold bg-[hsl(var(--muted)/0.5)] px-3 py-1 rounded-md inline-block">{form.bmi || '—'}</span>
           </TableRow>
           <TableRow label="BMI Classification">
-            <Select value={form.bmi_classification} onValueChange={v => set('bmi_classification', v)}>
-              <SelectTrigger className="max-w-[200px] h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>{BMI_CLASS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={form.bmi_classification} onValueChange={v => set('bmi_classification', v)}>
+                <SelectTrigger className="max-w-[200px] h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>{BMI_CLASS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+              {form.bmi && <span className="text-xs text-[hsl(var(--muted-foreground))]">Auto-calculated</span>}
+            </div>
           </TableRow>
           <TableRow label="SA No."><span>{form.sa_no || '—'}</span></TableRow>
           <TableRow label="Result Date">
@@ -287,19 +322,19 @@ export default function MedicalExamination() {
           </TableRow>
         </SectionTable>
 
-        <div id="past-history">
+        <div id="past-history" className="scroll-mt-28">
           <PastMedicalHistory data={form.past_history} onChange={v => set('past_history', v)} />
         </div>
 
-        <div id="physical-exam">
+        <div id="physical-exam" className="scroll-mt-28">
           <PhysicalExamination data={form.physical_exam} patient={selectedPatient} onChange={v => set('physical_exam', v)} />
         </div>
 
-        <div id="lab-summary">
+        <div id="lab-summary" className="scroll-mt-28">
           <LabDiagnosticSummary data={form.lab_summary} onChange={v => set('lab_summary', v)} />
         </div>
 
-        <div id="evaluation">
+        <div id="evaluation" className="scroll-mt-28">
           <Evaluation data={form.evaluation} onChange={v => set('evaluation', v)} />
         </div>
       </div>

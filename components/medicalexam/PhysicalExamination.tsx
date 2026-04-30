@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { CheckCheck, Eraser } from 'lucide-react'
+import { CheckCheck, Eraser, ChevronDown } from 'lucide-react'
 
 const BODY_SYSTEMS = [
   'Head / Scalp', 'Eyes', 'Ears', 'Nose', 'Neck / Throat',
@@ -44,6 +45,8 @@ function QuickActions({ onNormal, onClear }: { onNormal: () => void; onClear: ()
 }
 
 export default function PhysicalExamination({ data, patient, onChange }: { data: any; patient: any; onChange: (v: any) => void }) {
+  const [dentalOpen, setDentalOpen] = useState(false)
+  const [obGyneOpen, setObGyneOpen] = useState(false)
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
   const systems = data.systems || {}
   const va = data.visual_acuity || {}
@@ -156,9 +159,18 @@ export default function PhysicalExamination({ data, patient, onChange }: { data:
           {patient?.gender === 'Female' && (
             <>
               <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
-                <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">OB / Gyne</td>
+                <td colSpan={2} className="px-4 py-0">
+                  <button
+                    type="button"
+                    onClick={() => setObGyneOpen(!obGyneOpen)}
+                    className="w-full flex items-center justify-between py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide cursor-pointer hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
+                    <span>OB / Gyne</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${obGyneOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </td>
               </tr>
-              {[
+              {obGyneOpen && [
                 { label: 'LMP', key: 'lmp', type: 'date' },
                 { label: 'OB Score', key: 'ob_score', placeholder: 'G_P_' },
                 { label: 'Interval', key: 'interval' },
@@ -177,9 +189,20 @@ export default function PhysicalExamination({ data, patient, onChange }: { data:
 
           {/* Dental */}
           <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
-            <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Dental</td>
+            <td colSpan={2} className="px-4 py-0">
+              <button
+                type="button"
+                onClick={() => setDentalOpen(!dentalOpen)}
+                className="w-full flex items-center justify-between py-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide cursor-pointer hover:text-[hsl(var(--foreground))] transition-colors"
+              >
+                <span>Dental</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${dentalOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </td>
           </tr>
-          {['Upper Right', 'Upper Left', 'Lower Right', 'Lower Left'].map(q => (
+          {dentalOpen && (
+            <>
+              {['Upper Right', 'Upper Left', 'Lower Right', 'Lower Left'].map(q => (
             <tr key={q} className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--accent)/0.3)] transition-colors">
               <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">{q}</td>
               <td className="px-4 py-2.5">
@@ -213,6 +236,8 @@ export default function PhysicalExamination({ data, patient, onChange }: { data:
             <td className="px-4 py-2.5 text-sm font-medium text-[hsl(var(--muted-foreground))] w-[40%]">Attending Dentist</td>
             <td className="px-4 py-2.5"><Input value={data.attending_dentist || ''} onChange={e => set('attending_dentist', e.target.value)} className="h-8 text-sm" /></td>
           </tr>
+            </>
+          )}
         </tbody>
       </table>
     </div>
