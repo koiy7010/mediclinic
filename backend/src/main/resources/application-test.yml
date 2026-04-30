@@ -1,0 +1,14 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/mediclinic-test
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
+
+logging:
+  level:
+    com.smartguys: DEBUG

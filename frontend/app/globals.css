@@ -1,0 +1,302 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+    --primary: 192 91% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 25% 25%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 50%;
+    --accent: 192 60% 92%;
+    --accent-foreground: 192 91% 25%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 20% 88%;
+    --input: 210 20% 92%;
+    --ring: 192 91% 36%;
+    --radius: 0.5rem;
+    --success: 145 63% 42%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 145 50% 92%;
+    --sidebar-background: 215 30% 18%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 192 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 25%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 215 25% 25%;
+    --sidebar-ring: 192 91% 50%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    outline-color: hsl(var(--ring) / 0.5);
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', sans-serif;
+  }
+  button, [role="button"], input[type="checkbox"], input[type="radio"], select, label[for] {
+    cursor: pointer;
+  }
+}
+
+.tab-active {
+  border-bottom-width: 2px;
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  background-color: hsl(var(--accent));
+}
+.tab-inactive {
+  color: hsl(var(--muted-foreground));
+}
+.tab-inactive:hover {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--muted));
+}
+
+/* Animations */
+@keyframes slide-in-from-bottom-4 {
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Toast animations */
+@keyframes toast-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-toast-out {
+  animation: toast-out 150ms ease-in forwards;
+}
+
+@keyframes slide-in-from-top-2 {
+  from {
+    transform: translateY(-0.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoom-in-95 {
+  from { transform: scale(0.95); }
+  to { transform: scale(1); }
+}
+
+.animate-in {
+  animation-duration: 150ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-95 {
+  animation-name: zoom-in-95;
+}
+
+.slide-in-from-bottom-4 {
+  animation-name: slide-in-from-bottom-4;
+}
+
+.slide-in-from-top-2 {
+  animation-name: slide-in-from-top-2;
+}
+
+/* Print styles */
+@media print {
+  /* Hide non-printable elements */
+  aside,
+  header,
+  nav,
+  .no-print,
+  button,
+  [role="button"],
+  .floating-action-bar,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Reset layout for print */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  [class*="pl-64"] {
+    padding-left: 0 !important;
+  }
+
+  /* Ensure content fits on page */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Page breaks */
+  .section-card,
+  section {
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  /* Improve readability */
+  a {
+    text-decoration: none !important;
+    color: black !important;
+  }
+
+  /* Show full content */
+  .max-w-5xl {
+    max-width: 100% !important;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20pt;
+    padding-bottom: 10pt;
+    border-bottom: 1pt solid #ccc;
+  }
+
+  /* Ensure tables print well */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1pt solid #ddd;
+    padding: 8pt;
+    text-align: left;
+  }
+
+  th {
+    background-color: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Focus visible styles for accessibility */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Improved input focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+  
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Swipe gesture support hint */
+.swipe-hint {
+  position: relative;
+}
+
+.swipe-hint::after {
+  content: '← swipe →';
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.swipe-hint:hover::after {
+  opacity: 1;
+}

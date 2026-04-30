@@ -1,0 +1,9 @@
+logging:
+  level:
+    com.smartguys: DEBUG
+    org.springframework.data.mongodb: DEBUG
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/mediclinic
