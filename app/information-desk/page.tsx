@@ -9,7 +9,7 @@ import { SectionCard, FormField } from '@/components/ui/FormField'
 import {
   ConciergeBell, Search, Plus, UserPlus, X, Clock, FlaskConical,
   Stethoscope, RadioTower, ScanLine, Zap, ArrowRight, Check,
-  RotateCcw, Users, AlertCircle, Printer
+  RotateCcw, Users, AlertCircle, Printer, ChevronDown
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { mockPatients } from '@/lib/mockData'
@@ -110,6 +110,7 @@ function QueueStatusBadge({ status }: { status: QueueEntry['status'] }) {
 export default function InformationDesk() {
   const [activeView, setActiveView] = useState<'queue' | 'register'>('queue')
   const [showModal, setShowModal] = useState(false)
+  const [showStats, setShowStats] = useState(true)
   const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE)
   const [searchQuery, setSearchQuery] = useState('')
   const [regForm, setRegForm] = useState(emptyRegistration)
@@ -271,24 +272,40 @@ export default function InformationDesk() {
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Total Today', value: todayStats.total, icon: Users },
-            { label: 'Waiting', value: todayStats.waiting, icon: Clock },
-            { label: 'In Progress', value: todayStats.inProgress, icon: ArrowRight },
-            { label: 'Done', value: todayStats.done, icon: Check },
-          ].map(stat => (
-            <div key={stat.label} className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[hsl(var(--primary)/0.08)]">
-                <stat.icon className="w-4 h-4 text-[hsl(var(--primary))]" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{stat.value}</p>
-                <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wide font-medium">{stat.label}</p>
-              </div>
+        {/* Stats bar — collapsible */}
+        <div>
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="flex items-center gap-2 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors cursor-pointer mb-2"
+          >
+            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", !showStats && "-rotate-90")} />
+            Today&apos;s Summary
+            {!showStats && (
+              <span className="text-[hsl(var(--primary))] font-semibold">
+                {todayStats.total} total · {todayStats.waiting} waiting
+              </span>
+            )}
+          </button>
+          {showStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Total Today', value: todayStats.total, icon: Users },
+                { label: 'Waiting', value: todayStats.waiting, icon: Clock },
+                { label: 'In Progress', value: todayStats.inProgress, icon: ArrowRight },
+                { label: 'Done', value: todayStats.done, icon: Check },
+              ].map(stat => (
+                <div key={stat.label} className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[hsl(var(--primary)/0.08)]">
+                    <stat.icon className="w-4 h-4 text-[hsl(var(--primary))]" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{stat.value}</p>
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wide font-medium">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {/* ═══ QUEUE ═══ */}
