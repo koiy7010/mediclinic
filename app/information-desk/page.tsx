@@ -33,11 +33,11 @@ interface QueueEntry {
 
 /* ── Constants ── */
 const DEPARTMENTS = [
-  { id: 'laboratory', label: 'Laboratory', icon: FlaskConical, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  { id: 'medical-exam', label: 'Medical Exam', icon: Stethoscope, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  { id: 'xray', label: 'X-Ray', icon: RadioTower, color: 'text-purple-600 bg-purple-50 border-purple-200' },
-  { id: 'utz', label: 'UTZ', icon: ScanLine, color: 'text-orange-600 bg-orange-50 border-orange-200' },
-  { id: 'ecg', label: 'ECG', icon: Zap, color: 'text-rose-600 bg-rose-50 border-rose-200' },
+  { id: 'laboratory', label: 'Laboratory', icon: FlaskConical },
+  { id: 'medical-exam', label: 'Medical Exam', icon: Stethoscope },
+  { id: 'xray', label: 'X-Ray', icon: RadioTower },
+  { id: 'utz', label: 'UTZ', icon: ScanLine },
+  { id: 'ecg', label: 'ECG', icon: Zap },
 ]
 
 const PURPOSES = [
@@ -83,24 +83,24 @@ function DeptBadge({ department }: { department: string }) {
   if (!dept) return null
   const Icon = dept.icon
   return (
-    <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border", dept.color)}>
-      <Icon className="w-3 h-3" />
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]">
+      <Icon className="w-3 h-3 text-[hsl(var(--primary))]" />
       {dept.label}
     </span>
   )
 }
 
 /* ── Status Badge ── */
-function StatusBadge({ status }: { status: QueueEntry['status'] }) {
+function QueueStatusBadge({ status }: { status: QueueEntry['status'] }) {
   const styles = {
-    waiting: 'bg-amber-50 text-amber-700 border-amber-200',
-    'in-progress': 'bg-blue-50 text-blue-700 border-blue-200',
-    done: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    waiting: 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]',
+    'in-progress': 'bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] border-[hsl(var(--primary)/0.3)]',
+    done: 'bg-[hsl(var(--success-muted))] text-[hsl(var(--success))] border-[hsl(var(--success)/0.3)]',
   }
   const labels = { waiting: 'Waiting', 'in-progress': 'In Progress', done: 'Done' }
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border", styles[status])}>
-      {status === 'in-progress' && <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" /></span>}
+      {status === 'in-progress' && <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--primary))] opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[hsl(var(--primary))]" /></span>}
       {labels[status]}
     </span>
   )
@@ -297,14 +297,14 @@ export default function InformationDesk() {
         {/* Stats bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total Today', value: todayStats.total, icon: Users, color: 'text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]' },
-            { label: 'Waiting', value: todayStats.waiting, icon: Clock, color: 'text-amber-600 bg-amber-50' },
-            { label: 'In Progress', value: todayStats.inProgress, icon: ArrowRight, color: 'text-blue-600 bg-blue-50' },
-            { label: 'Done', value: todayStats.done, icon: Check, color: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Total Today', value: todayStats.total, icon: Users },
+            { label: 'Waiting', value: todayStats.waiting, icon: Clock },
+            { label: 'In Progress', value: todayStats.inProgress, icon: ArrowRight },
+            { label: 'Done', value: todayStats.done, icon: Check },
           ].map(stat => (
             <div key={stat.label} className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3">
-              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", stat.color)}>
-                <stat.icon className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[hsl(var(--primary)/0.08)]">
+                <stat.icon className="w-4 h-4 text-[hsl(var(--primary))]" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{stat.value}</p>
@@ -319,11 +319,11 @@ export default function InformationDesk() {
           {deptCounts.map(d => {
             const Icon = d.icon
             return (
-              <div key={d.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border text-sm", d.color)}>
-                <Icon className="w-4 h-4" />
+              <div key={d.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-sm text-[hsl(var(--foreground))]">
+                <Icon className="w-4 h-4 text-[hsl(var(--primary))]" />
                 <span className="font-medium">{d.label}</span>
-                <span className="text-xs opacity-70">{d.waiting} waiting</span>
-                {d.inProgress > 0 && <span className="text-xs opacity-70">· {d.inProgress} active</span>}
+                <span className="text-xs text-[hsl(var(--muted-foreground))]">{d.waiting} waiting</span>
+                {d.inProgress > 0 && <span className="text-xs text-[hsl(var(--muted-foreground))]">· {d.inProgress} active</span>}
               </div>
             )
           })}
@@ -403,16 +403,16 @@ export default function InformationDesk() {
                       <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">{q.employer}</td>
                       <td className="px-4 py-2.5"><DeptBadge department={q.department} /></td>
                       <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden md:table-cell">{q.purpose}</td>
-                      <td className="px-4 py-2.5"><StatusBadge status={q.status} /></td>
+                      <td className="px-4 py-2.5"><QueueStatusBadge status={q.status} /></td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1">
                           {q.status === 'waiting' && (
-                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'in-progress')} className="h-7 text-xs text-blue-600 hover:bg-blue-50">
+                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'in-progress')} className="h-7 text-xs text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)]">
                               Start
                             </Button>
                           )}
                           {q.status === 'in-progress' && (
-                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'done')} className="h-7 text-xs text-emerald-600 hover:bg-emerald-50">
+                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'done')} className="h-7 text-xs text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
                               Done
                             </Button>
                           )}
@@ -546,7 +546,7 @@ export default function InformationDesk() {
               )}
 
               {duplicateWarning && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-lg text-sm mb-4 flex items-start gap-2">
+                <div className="bg-[hsl(var(--accent)/0.4)] border border-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] px-4 py-2.5 rounded-lg text-sm mb-4 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
                     <p className="font-medium">Possible duplicate detected</p>
