@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck } from 'lucide-react'
+import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck, ConciergeBell } from 'lucide-react'
 import { useState } from 'react'
 import EnhancedGlobalSearch from '@/components/EnhancedGlobalSearch'
 import { RecentPatientsDropdown } from '@/components/ui/RecentPatients'
@@ -11,6 +11,7 @@ import { NotificationBell } from '@/components/ui/AlertsPanel'
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 
 const navItems = [
+  { path: '/information-desk', label: 'Information Desk', icon: ConciergeBell },
   { path: '/', label: 'Patient Profile', icon: Users },
   { path: '/laboratory', label: 'Laboratory', icon: FlaskConical },
   { path: '/medical-exam', label: 'Medical Exam', icon: Stethoscope },

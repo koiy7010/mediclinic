@@ -1,0 +1,633 @@
+"use client"
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SectionCard, FormField } from '@/components/ui/FormField'
+import {
+  ConciergeBell, Search, Plus, UserPlus, X, Clock, FlaskConical,
+  Stethoscope, RadioTower, ScanLine, Zap, ArrowRight, Check,
+  RotateCcw, Users, AlertCircle, Printer
+} from 'lucide-react'
+import { format } from 'date-fns'
+import { mockPatients } from '@/lib/mockData'
+import { usePatient } from '@/lib/patient-context'
+import { toast } from '@/lib/use-toast'
+import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+
+/* ── Types ── */
+interface QueueEntry {
+  id: string
+  patient_id: string
+  patient_name: string
+  employer: string
+  department: string
+  purpose: string
+  status: 'waiting' | 'in-progress' | 'done'
+  queue_number: number
+  created_at: string
+}
+
+/* ── Constants ── */
+const DEPARTMENTS = [
+  { id: 'laboratory', label: 'Laboratory', icon: FlaskConical, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { id: 'medical-exam', label: 'Medical Exam', icon: Stethoscope, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  { id: 'xray', label: 'X-Ray', icon: RadioTower, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  { id: 'utz', label: 'UTZ', icon: ScanLine, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+  { id: 'ecg', label: 'ECG', icon: Zap, color: 'text-rose-600 bg-rose-50 border-rose-200' },
+]
+
+const PURPOSES = [
+  'Annual PE',
+  'Pre-Employment',
+  'Follow-up',
+  'Walk-in',
+  'Medical Clearance',
+  'Fit to Work',
+]
+
+const NATIONALITIES = ['Filipino', 'American', 'Japanese', 'Korean', 'Chinese', 'British', 'Australian', 'Canadian', 'Other']
+const GENDERS = ['Male', 'Female']
+
+const emptyRegistration = {
+  last_name: '',
+  first_name: '',
+  middle_name: '',
+  contact_number: '',
+  employer: '',
+  birthdate: '',
+  gender: '',
+  address: '',
+  nationality: 'Filipino',
+}
+
+function calcAge(birthdate: string) {
+  if (!birthdate) return '—'
+  return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+}
+
+/* ── Mock queue data ── */
+const INITIAL_QUEUE: QueueEntry[] = [
+  { id: 'q1', patient_id: 'p1', patient_name: 'Santos, Maria', employer: 'BDO Unibank', department: 'laboratory', purpose: 'Annual PE', status: 'in-progress', queue_number: 1, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:15:00' },
+  { id: 'q2', patient_id: 'p2', patient_name: 'Reyes, Juan', employer: 'SM Investments', department: 'medical-exam', purpose: 'Pre-Employment', status: 'waiting', queue_number: 2, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:30:00' },
+  { id: 'q3', patient_id: 'p3', patient_name: 'Garcia, Ana', employer: 'Jollibee Foods Corp.', department: 'xray', purpose: 'Annual PE', status: 'waiting', queue_number: 3, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:45:00' },
+  { id: 'q4', patient_id: 'p4', patient_name: 'Mendoza, Carlos', employer: 'PLDT Inc.', department: 'laboratory', purpose: 'Follow-up', status: 'done', queue_number: 4, created_at: format(new Date(), 'yyyy-MM-dd') + 'T07:30:00' },
+]
+
+/* ── Department Badge ── */
+function DeptBadge({ department }: { department: string }) {
+  const dept = DEPARTMENTS.find(d => d.id === department)
+  if (!dept) return null
+  const Icon = dept.icon
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border", dept.color)}>
+      <Icon className="w-3 h-3" />
+      {dept.label}
+    </span>
+  )
+}
+
+/* ── Status Badge ── */
+function StatusBadge({ status }: { status: QueueEntry['status'] }) {
+  const styles = {
+    waiting: 'bg-amber-50 text-amber-700 border-amber-200',
+    'in-progress': 'bg-blue-50 text-blue-700 border-blue-200',
+    done: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  }
+  const labels = { waiting: 'Waiting', 'in-progress': 'In Progress', done: 'Done' }
+  return (
+    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border", styles[status])}>
+      {status === 'in-progress' && <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" /></span>}
+      {labels[status]}
+    </span>
+  )
+}
+
+/* ── Main Component ── */
+export default function InformationDesk() {
+  const [activeView, setActiveView] = useState<'queue' | 'register'>('queue')
+  const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [regForm, setRegForm] = useState(emptyRegistration)
+  const [regError, setRegError] = useState('')
+  const [selectedDept, setSelectedDept] = useState('')
+  const [selectedPurpose, setSelectedPurpose] = useState('')
+  const [queueFilter, setQueueFilter] = useState<'all' | 'waiting' | 'in-progress' | 'done'>('all')
+  const [patientSearchQuery, setPatientSearchQuery] = useState('')
+  const [showPatientSearch, setShowPatientSearch] = useState(false)
+  const [selectedExistingPatient, setSelectedExistingPatient] = useState<any>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const { confirm, ConfirmDialog } = useConfirm()
+  const { setSelectedPatient } = usePatient()
+
+  const { data: patients = [] } = useQuery<any[]>({
+    queryKey: ['patients'],
+    queryFn: async () => mockPatients,
+  })
+
+  // Queue counter
+  const nextQueueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queue_number)) + 1 : 1
+
+  // Department counts
+  const deptCounts = DEPARTMENTS.map(d => ({
+    ...d,
+    waiting: queue.filter(q => q.department === d.id && q.status === 'waiting').length,
+    inProgress: queue.filter(q => q.department === d.id && q.status === 'in-progress').length,
+    total: queue.filter(q => q.department === d.id && q.status !== 'done').length,
+  }))
+
+  // Filtered queue
+  const filteredQueue = queue
+    .filter(q => queueFilter === 'all' || q.status === queueFilter)
+    .filter(q => {
+      if (!searchQuery) return true
+      const s = searchQuery.toLowerCase()
+      return q.patient_name.toLowerCase().includes(s) || q.employer.toLowerCase().includes(s) || String(q.queue_number).includes(s)
+    })
+    .sort((a, b) => {
+      const statusOrder = { waiting: 0, 'in-progress': 1, done: 2 }
+      if (statusOrder[a.status] !== statusOrder[b.status]) return statusOrder[a.status] - statusOrder[b.status]
+      return a.queue_number - b.queue_number
+    })
+
+  // Patient search for existing patients
+  const patientResults = patientSearchQuery.trim()
+    ? (patients as any[]).filter((p: any) => {
+        const q = patientSearchQuery.toLowerCase()
+        return (p.last_name || '').toLowerCase().includes(q) || (p.first_name || '').toLowerCase().includes(q) || (p.employer || '').toLowerCase().includes(q) || (p.id || '').toLowerCase().includes(q)
+      }).slice(0, 8)
+    : []
+
+  // Duplicate detection
+  const checkDuplicate = useCallback((lastName: string, firstName: string, birthdate: string) => {
+    if (!lastName || !firstName) return null
+    const match = (patients as any[]).find((p: any) =>
+      p.last_name.toLowerCase() === lastName.toLowerCase() &&
+      p.first_name.toLowerCase() === firstName.toLowerCase() &&
+      (!birthdate || p.birthdate === birthdate)
+    )
+    return match || null
+  }, [patients])
+
+  const duplicateWarning = checkDuplicate(regForm.last_name, regForm.first_name, regForm.birthdate)
+
+  const setReg = (k: string, v: string) => setRegForm(f => ({ ...f, [k]: v }))
+
+  // Queue actions
+  function updateStatus(id: string, newStatus: QueueEntry['status']) {
+    setQueue(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q))
+    toast({ title: `Status updated to ${newStatus === 'in-progress' ? 'In Progress' : newStatus === 'done' ? 'Done' : 'Waiting'}`, variant: 'success' })
+  }
+
+  function addToQueue(patientId: string, patientName: string, employer: string) {
+    if (!selectedDept) {
+      toast({ title: 'Please select a department', variant: 'default' })
+      return
+    }
+    if (!selectedPurpose) {
+      toast({ title: 'Please select a purpose of visit', variant: 'default' })
+      return
+    }
+    const entry: QueueEntry = {
+      id: `q${Date.now()}`,
+      patient_id: patientId,
+      patient_name: patientName,
+      employer: employer || '—',
+      department: selectedDept,
+      purpose: selectedPurpose,
+      status: 'waiting',
+      queue_number: nextQueueNumber,
+      created_at: new Date().toISOString(),
+    }
+    setQueue(prev => [...prev, entry])
+    setSelectedDept('')
+    setSelectedPurpose('')
+    setSelectedExistingPatient(null)
+    setActiveView('queue')
+    toast({ title: `Queue #${entry.queue_number} — ${patientName} added`, variant: 'success' })
+  }
+
+  function handleRegisterAndQueue() {
+    if (!regForm.last_name || !regForm.first_name) {
+      setRegError('Last Name and First Name are required.')
+      return
+    }
+    if (!selectedDept) {
+      setRegError('Please select a department.')
+      return
+    }
+    if (!selectedPurpose) {
+      setRegError('Please select a purpose of visit.')
+      return
+    }
+    setRegError('')
+    const newId = `p${Date.now()}`
+    const patientName = `${regForm.last_name}, ${regForm.first_name}`
+    addToQueue(newId, patientName, regForm.employer)
+    setRegForm(emptyRegistration)
+    toast({ title: `Patient registered: ${patientName}`, variant: 'success' })
+  }
+
+  async function handleClearDone() {
+    const doneCount = queue.filter(q => q.status === 'done').length
+    if (doneCount === 0) {
+      toast({ title: 'No completed entries to clear', variant: 'default' })
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Clear Completed',
+      message: `Remove ${doneCount} completed queue ${doneCount === 1 ? 'entry' : 'entries'}?`,
+      confirmLabel: 'Clear',
+      cancelLabel: 'Cancel',
+      variant: 'warning',
+    })
+    if (confirmed) {
+      setQueue(prev => prev.filter(q => q.status !== 'done'))
+      toast({ title: `${doneCount} completed entries cleared`, variant: 'success' })
+    }
+  }
+
+  const todayStats = {
+    total: queue.length,
+    waiting: queue.filter(q => q.status === 'waiting').length,
+    inProgress: queue.filter(q => q.status === 'in-progress').length,
+    done: queue.filter(q => q.status === 'done').length,
+  }
+
+  return (
+    <div className="min-h-screen bg-[hsl(var(--background))]">
+      <div className="max-w-6xl mx-auto w-full px-4 py-6 space-y-5">
+        {/* Page header */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[hsl(var(--primary)/0.1)] flex items-center justify-center">
+              <ConciergeBell className="w-5 h-5 text-[hsl(var(--primary))]" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-[hsl(var(--foreground))]">Information Desk</h1>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">{format(new Date(), 'EEEE, MMMM dd, yyyy')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={activeView === 'queue' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveView('queue')}
+            >
+              <Users className="w-4 h-4 mr-1.5" />
+              Queue
+              {todayStats.waiting > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">{todayStats.waiting}</span>
+              )}
+            </Button>
+            <Button
+              variant={activeView === 'register' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveView('register')}
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              Register / Queue
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Today', value: todayStats.total, icon: Users, color: 'text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]' },
+            { label: 'Waiting', value: todayStats.waiting, icon: Clock, color: 'text-amber-600 bg-amber-50' },
+            { label: 'In Progress', value: todayStats.inProgress, icon: ArrowRight, color: 'text-blue-600 bg-blue-50' },
+            { label: 'Done', value: todayStats.done, icon: Check, color: 'text-emerald-600 bg-emerald-50' },
+          ].map(stat => (
+            <div key={stat.label} className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] px-4 py-3 flex items-center gap-3">
+              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", stat.color)}>
+                <stat.icon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-[hsl(var(--foreground))]">{stat.value}</p>
+                <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wide font-medium">{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Department overview */}
+        <div className="flex flex-wrap gap-2">
+          {deptCounts.map(d => {
+            const Icon = d.icon
+            return (
+              <div key={d.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border text-sm", d.color)}>
+                <Icon className="w-4 h-4" />
+                <span className="font-medium">{d.label}</span>
+                <span className="text-xs opacity-70">{d.waiting} waiting</span>
+                {d.inProgress > 0 && <span className="text-xs opacity-70">· {d.inProgress} active</span>}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ═══ QUEUE VIEW ═══ */}
+        {activeView === 'queue' && (
+          <div className="space-y-4">
+            {/* Queue toolbar */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+                  <Input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search queue…"
+                    className="pl-9 h-8 text-sm w-64"
+                  />
+                </div>
+                <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
+                  {(['all', 'waiting', 'in-progress', 'done'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setQueueFilter(f)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                        queueFilter === f
+                          ? 'bg-[hsl(var(--primary))] text-white'
+                          : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]'
+                      )}
+                    >
+                      {f === 'all' ? 'All' : f === 'in-progress' ? 'Active' : f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleClearDone}>
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Clear Done
+                </Button>
+                <Button size="sm" onClick={() => setActiveView('register')}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
+                </Button>
+              </div>
+            </div>
+
+            {/* Queue table */}
+            <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-[hsl(var(--muted)/0.5)] border-b border-[hsl(var(--border))]">
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-16">#</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Patient</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide hidden sm:table-cell">Employer</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Department</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide hidden md:table-cell">Purpose</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-28">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredQueue.map(q => (
+                    <tr key={q.id} className={cn(
+                      "border-b border-[hsl(var(--border))] last:border-b-0 transition-colors",
+                      q.status === 'done' ? 'opacity-50' : 'hover:bg-[hsl(var(--accent)/0.3)]'
+                    )}>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] text-sm font-bold">
+                          {q.queue_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <p className="text-sm font-medium">{q.patient_name}</p>
+                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] sm:hidden">{q.employer}</p>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">{q.employer}</td>
+                      <td className="px-4 py-2.5"><DeptBadge department={q.department} /></td>
+                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden md:table-cell">{q.purpose}</td>
+                      <td className="px-4 py-2.5"><StatusBadge status={q.status} /></td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1">
+                          {q.status === 'waiting' && (
+                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'in-progress')} className="h-7 text-xs text-blue-600 hover:bg-blue-50">
+                              Start
+                            </Button>
+                          )}
+                          {q.status === 'in-progress' && (
+                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'done')} className="h-7 text-xs text-emerald-600 hover:bg-emerald-50">
+                              Done
+                            </Button>
+                          )}
+                          {q.status === 'done' && (
+                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'waiting')} className="h-7 text-xs text-[hsl(var(--muted-foreground))]">
+                              Reset
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredQueue.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-sm text-[hsl(var(--muted-foreground))]">
+                        {searchQuery ? 'No matching queue entries' : 'Queue is empty — add patients to get started'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ REGISTER / QUEUE VIEW ═══ */}
+        {activeView === 'register' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Button variant="ghost" size="sm" onClick={() => setActiveView('queue')}>
+                ← Back to Queue
+              </Button>
+            </div>
+
+            {/* Existing patient search */}
+            <SectionCard title="Find Existing Patient">
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+                  <Input
+                    ref={searchInputRef}
+                    value={patientSearchQuery}
+                    onChange={e => { setPatientSearchQuery(e.target.value); setShowPatientSearch(true) }}
+                    onFocus={() => setShowPatientSearch(true)}
+                    placeholder="Search by name, employer, or ID…"
+                    className="pl-9 h-9 text-sm"
+                  />
+                  {patientSearchQuery && (
+                    <button onClick={() => { setPatientSearchQuery(''); setShowPatientSearch(false); setSelectedExistingPatient(null) }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[hsl(var(--muted))] cursor-pointer">
+                      <X className="w-3.5 h-3.5 text-[hsl(var(--muted-foreground))]" />
+                    </button>
+                  )}
+                </div>
+
+                {showPatientSearch && patientResults.length > 0 && (
+                  <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden">
+                    {patientResults.map((p: any) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedExistingPatient(p)
+                          setPatientSearchQuery(`${p.last_name}, ${p.first_name}`)
+                          setShowPatientSearch(false)
+                        }}
+                        className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-[hsl(var(--accent)/0.5)] transition-colors cursor-pointer border-b border-[hsl(var(--border))] last:border-b-0"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{p.last_name}, {p.first_name}</p>
+                          <p className="text-xs text-[hsl(var(--muted-foreground))]">{p.employer || '—'} · {calcAge(p.birthdate)} yrs · {p.gender || '—'}</p>
+                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">{p.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedExistingPatient && (
+                  <div className="bg-[hsl(var(--accent)/0.3)] border border-[hsl(var(--accent))] rounded-lg px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">{selectedExistingPatient.last_name}, {selectedExistingPatient.first_name}</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                          {selectedExistingPatient.employer || '—'} · {calcAge(selectedExistingPatient.birthdate)} yrs · {selectedExistingPatient.gender || '—'} · {selectedExistingPatient.contact_number || 'No contact'}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { setSelectedExistingPatient(null); setPatientSearchQuery('') }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Department & Purpose for existing patient */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <FormField label="Department" required>
+                        <Select value={selectedDept} onValueChange={setSelectedDept}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select department…" /></SelectTrigger>
+                          <SelectContent>
+                            {DEPARTMENTS.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </FormField>
+                      <FormField label="Purpose of Visit" required>
+                        <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select purpose…" /></SelectTrigger>
+                          <SelectContent>
+                            {PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </FormField>
+                    </div>
+                    <div className="mt-3">
+                      <Button size="sm" onClick={() => addToQueue(
+                        selectedExistingPatient.id,
+                        `${selectedExistingPatient.last_name}, ${selectedExistingPatient.first_name}`,
+                        selectedExistingPatient.employer
+                      )}>
+                        <Plus className="w-4 h-4 mr-1.5" /> Add to Queue (#{nextQueueNumber})
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* New patient registration */}
+            <SectionCard title="Register New Patient">
+              {regError && (
+                <div className="bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))] px-4 py-2.5 rounded-lg text-sm font-medium mb-4">
+                  {regError}
+                </div>
+              )}
+
+              {duplicateWarning && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-lg text-sm mb-4 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Possible duplicate detected</p>
+                    <p className="text-xs mt-0.5">A patient named <strong>{duplicateWarning.last_name}, {duplicateWarning.first_name}</strong> (ID: {duplicateWarning.id}) already exists. Consider searching for them above instead.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <FormField label="Last Name" required>
+                  <Input value={regForm.last_name} onChange={e => setReg('last_name', e.target.value)} placeholder="Last name"
+                    className={cn("h-8 text-sm", !regForm.last_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
+                </FormField>
+                <FormField label="First Name" required>
+                  <Input value={regForm.first_name} onChange={e => setReg('first_name', e.target.value)} placeholder="First name"
+                    className={cn("h-8 text-sm", !regForm.first_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
+                </FormField>
+                <FormField label="Middle Name">
+                  <Input value={regForm.middle_name} onChange={e => setReg('middle_name', e.target.value)} placeholder="Middle name" className="h-8 text-sm" />
+                </FormField>
+                <FormField label="Contact Number">
+                  <Input value={regForm.contact_number} onChange={e => setReg('contact_number', e.target.value)} placeholder="+63 XXX XXX XXXX" className="h-8 text-sm" />
+                </FormField>
+                <FormField label="Employer">
+                  <Input value={regForm.employer} onChange={e => setReg('employer', e.target.value)} placeholder="Company" className="h-8 text-sm" />
+                </FormField>
+                <FormField label="Birthdate">
+                  <Input type="date" value={regForm.birthdate} onChange={e => setReg('birthdate', e.target.value)} className="h-8 text-sm" />
+                </FormField>
+                <FormField label="Gender">
+                  <Select value={regForm.gender} onValueChange={v => setReg('gender', v)}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {GENDERS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Address" className="sm:col-span-2">
+                  <Input value={regForm.address} onChange={e => setReg('address', e.target.value)} placeholder="Full address" className="h-8 text-sm" />
+                </FormField>
+              </div>
+
+              {/* Department & Purpose */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-[hsl(var(--border))]">
+                <FormField label="Assign to Department" required>
+                  <Select value={selectedDept} onValueChange={setSelectedDept}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select department…" /></SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Purpose of Visit" required>
+                  <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select purpose…" /></SelectTrigger>
+                    <SelectContent>
+                      {PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-[hsl(var(--border))]">
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  Queue number: <span className="font-bold text-[hsl(var(--primary))]">#{nextQueueNumber}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setRegForm(emptyRegistration); setRegError(''); setSelectedDept(''); setSelectedPurpose('') }}>
+                    Clear
+                  </Button>
+                  <Button size="sm" onClick={handleRegisterAndQueue}>
+                    <UserPlus className="w-4 h-4 mr-1.5" /> Register & Add to Queue
+                  </Button>
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+      </div>
+
+      {ConfirmDialog}
+    </div>
+  )
+}
