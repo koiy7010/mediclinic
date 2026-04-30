@@ -12,7 +12,6 @@ import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.model.enums.ReleaseStatus;
 import com.smartguys.mediclinic.repository.ReleaseRecordRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,11 +25,13 @@ import java.util.stream.Collectors;
 @Service
 public class ReleasingService {
     
-    @Autowired
-    private ReleaseRecordRepository releaseRecordRepository;
+    private final ReleaseRecordRepository releaseRecordRepository;
+    private final CounterService counterService;
     
-    @Autowired
-    private CounterService counterService;
+    public ReleasingService(ReleaseRecordRepository releaseRecordRepository, CounterService counterService) {
+        this.releaseRecordRepository = releaseRecordRepository;
+        this.counterService = counterService;
+    }
     
     public Page<ReleaseRecordResponse> listReleaseRecords(ReleaseStatus status, String search, Pageable pageable) {
         Page<ReleaseRecord> records;

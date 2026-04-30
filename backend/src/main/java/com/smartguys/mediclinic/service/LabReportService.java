@@ -12,7 +12,6 @@ import com.smartguys.mediclinic.model.enums.ReportType;
 import com.smartguys.mediclinic.repository.LabReportRepository;
 import com.smartguys.mediclinic.repository.PatientRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -25,14 +24,15 @@ import java.util.stream.Collectors;
 @Service
 public class LabReportService {
     
-    @Autowired
-    private LabReportRepository labReportRepository;
+    private final LabReportRepository labReportRepository;
+    private final PatientRepository patientRepository;
+    private final ReferenceRangeService referenceRangeService;
     
-    @Autowired
-    private PatientRepository patientRepository;
-    
-    @Autowired
-    private ReferenceRangeService referenceRangeService;
+    public LabReportService(LabReportRepository labReportRepository, PatientRepository patientRepository, ReferenceRangeService referenceRangeService) {
+        this.labReportRepository = labReportRepository;
+        this.patientRepository = patientRepository;
+        this.referenceRangeService = referenceRangeService;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.LABORATORY)
     public LabReportResponse createLabReport(String patientId, LabReportRequest request) {

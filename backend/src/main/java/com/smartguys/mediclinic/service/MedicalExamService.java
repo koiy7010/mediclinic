@@ -12,7 +12,6 @@ import com.smartguys.mediclinic.repository.MedicalExamRepository;
 import com.smartguys.mediclinic.repository.PatientRepository;
 import com.smartguys.mediclinic.util.BmiCalculator;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -24,11 +23,13 @@ import java.util.stream.Collectors;
 @Service
 public class MedicalExamService {
     
-    @Autowired
-    private MedicalExamRepository medicalExamRepository;
+    private final MedicalExamRepository medicalExamRepository;
+    private final PatientRepository patientRepository;
     
-    @Autowired
-    private PatientRepository patientRepository;
+    public MedicalExamService(MedicalExamRepository medicalExamRepository, PatientRepository patientRepository) {
+        this.medicalExamRepository = medicalExamRepository;
+        this.patientRepository = patientRepository;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.MEDICAL_EXAM)
     public MedicalExamResponse createMedicalExam(String patientId, MedicalExamRequest request) {

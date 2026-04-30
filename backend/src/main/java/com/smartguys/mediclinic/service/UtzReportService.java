@@ -11,7 +11,6 @@ import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.repository.PatientRepository;
 import com.smartguys.mediclinic.repository.UtzReportRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,11 +22,13 @@ import java.util.stream.Collectors;
 @Service
 public class UtzReportService {
     
-    @Autowired
-    private UtzReportRepository utzReportRepository;
+    private final UtzReportRepository utzReportRepository;
+    private final PatientRepository patientRepository;
     
-    @Autowired
-    private PatientRepository patientRepository;
+    public UtzReportService(UtzReportRepository utzReportRepository, PatientRepository patientRepository) {
+        this.utzReportRepository = utzReportRepository;
+        this.patientRepository = patientRepository;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.UTZ)
     public UtzReportResponse createUtzReport(String patientId, UtzReportRequest request) {

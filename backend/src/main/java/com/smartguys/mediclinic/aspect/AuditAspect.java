@@ -6,7 +6,6 @@ import com.smartguys.mediclinic.service.ActivityLogService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
@@ -16,8 +15,11 @@ import java.time.LocalDateTime;
 @Component
 public class AuditAspect {
     
-    @Autowired
-    private ActivityLogService activityLogService;
+    private final ActivityLogService activityLogService;
+    
+    public AuditAspect(ActivityLogService activityLogService) {
+        this.activityLogService = activityLogService;
+    }
     
     @Around("@annotation(auditable)")
     public Object auditMethod(ProceedingJoinPoint joinPoint, Auditable auditable) throws Throwable {

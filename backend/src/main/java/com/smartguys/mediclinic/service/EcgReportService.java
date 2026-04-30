@@ -11,7 +11,6 @@ import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.repository.EcgReportRepository;
 import com.smartguys.mediclinic.repository.PatientRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,11 +22,13 @@ import java.util.stream.Collectors;
 @Service
 public class EcgReportService {
     
-    @Autowired
-    private EcgReportRepository ecgReportRepository;
+    private final EcgReportRepository ecgReportRepository;
+    private final PatientRepository patientRepository;
     
-    @Autowired
-    private PatientRepository patientRepository;
+    public EcgReportService(EcgReportRepository ecgReportRepository, PatientRepository patientRepository) {
+        this.ecgReportRepository = ecgReportRepository;
+        this.patientRepository = patientRepository;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.ECG)
     public EcgReportResponse createEcgReport(String patientId, EcgReportRequest request) {

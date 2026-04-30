@@ -10,7 +10,6 @@ import com.smartguys.mediclinic.model.enums.ActionType;
 import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.repository.*;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,23 +19,23 @@ import java.time.LocalDateTime;
 @Service
 public class PatientService {
     
-    @Autowired
-    private PatientRepository patientRepository;
+    private final PatientRepository patientRepository;
+    private final LabReportRepository labReportRepository;
+    private final RadiologyReportRepository radiologyReportRepository;
+    private final UtzReportRepository utzReportRepository;
+    private final EcgReportRepository ecgReportRepository;
+    private final MedicalExamRepository medicalExamRepository;
     
-    @Autowired
-    private LabReportRepository labReportRepository;
-    
-    @Autowired
-    private RadiologyReportRepository radiologyReportRepository;
-    
-    @Autowired
-    private UtzReportRepository utzReportRepository;
-    
-    @Autowired
-    private EcgReportRepository ecgReportRepository;
-    
-    @Autowired
-    private MedicalExamRepository medicalExamRepository;
+    public PatientService(PatientRepository patientRepository, LabReportRepository labReportRepository,
+                         RadiologyReportRepository radiologyReportRepository, UtzReportRepository utzReportRepository,
+                         EcgReportRepository ecgReportRepository, MedicalExamRepository medicalExamRepository) {
+        this.patientRepository = patientRepository;
+        this.labReportRepository = labReportRepository;
+        this.radiologyReportRepository = radiologyReportRepository;
+        this.utzReportRepository = utzReportRepository;
+        this.ecgReportRepository = ecgReportRepository;
+        this.medicalExamRepository = medicalExamRepository;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.PATIENT_PROFILE)
     public PatientResponse createPatient(PatientRequest request) {

@@ -3,7 +3,6 @@ package com.smartguys.mediclinic.service;
 import com.smartguys.mediclinic.dto.response.SearchResultResponse;
 import com.smartguys.mediclinic.model.Patient;
 import com.smartguys.mediclinic.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,23 +15,23 @@ import java.util.stream.Collectors;
 @Service
 public class SearchService {
     
-    @Autowired
-    private PatientRepository patientRepository;
+    private final PatientRepository patientRepository;
+    private final LabReportRepository labReportRepository;
+    private final RadiologyReportRepository radiologyReportRepository;
+    private final UtzReportRepository utzReportRepository;
+    private final EcgReportRepository ecgReportRepository;
+    private final MedicalExamRepository medicalExamRepository;
     
-    @Autowired
-    private LabReportRepository labReportRepository;
-    
-    @Autowired
-    private RadiologyReportRepository radiologyReportRepository;
-    
-    @Autowired
-    private UtzReportRepository utzReportRepository;
-    
-    @Autowired
-    private EcgReportRepository ecgReportRepository;
-    
-    @Autowired
-    private MedicalExamRepository medicalExamRepository;
+    public SearchService(PatientRepository patientRepository, LabReportRepository labReportRepository, 
+                        RadiologyReportRepository radiologyReportRepository, UtzReportRepository utzReportRepository,
+                        EcgReportRepository ecgReportRepository, MedicalExamRepository medicalExamRepository) {
+        this.patientRepository = patientRepository;
+        this.labReportRepository = labReportRepository;
+        this.radiologyReportRepository = radiologyReportRepository;
+        this.utzReportRepository = utzReportRepository;
+        this.ecgReportRepository = ecgReportRepository;
+        this.medicalExamRepository = medicalExamRepository;
+    }
     
     public List<SearchResultResponse> globalSearch(String query) {
         if (query == null || query.trim().isEmpty()) {

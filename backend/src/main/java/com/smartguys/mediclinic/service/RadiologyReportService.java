@@ -11,7 +11,6 @@ import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.repository.PatientRepository;
 import com.smartguys.mediclinic.repository.RadiologyReportRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,11 +22,13 @@ import java.util.stream.Collectors;
 @Service
 public class RadiologyReportService {
     
-    @Autowired
-    private RadiologyReportRepository radiologyReportRepository;
+    private final RadiologyReportRepository radiologyReportRepository;
+    private final PatientRepository patientRepository;
     
-    @Autowired
-    private PatientRepository patientRepository;
+    public RadiologyReportService(RadiologyReportRepository radiologyReportRepository, PatientRepository patientRepository) {
+        this.radiologyReportRepository = radiologyReportRepository;
+        this.patientRepository = patientRepository;
+    }
     
     @Auditable(action = ActionType.CREATED, module = ModuleType.X_RAY)
     public RadiologyReportResponse createRadiologyReport(String patientId, RadiologyReportRequest request) {

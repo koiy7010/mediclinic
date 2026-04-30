@@ -1,7 +1,6 @@
 package com.smartguys.mediclinic.service;
 
 import com.smartguys.mediclinic.model.Counter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -15,8 +14,11 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class CounterService {
     
-    @Autowired
-    private MongoTemplate mongoTemplate;
+    private final MongoTemplate mongoTemplate;
+    
+    public CounterService(MongoTemplate mongoTemplate) {
+        this.mongoTemplate = mongoTemplate;
+    }
     
     public long getNextQueueNumber(LocalDate date) {
         String key = "queue_" + date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));

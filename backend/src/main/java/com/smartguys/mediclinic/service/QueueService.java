@@ -11,7 +11,6 @@ import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.model.enums.QueueStatus;
 import com.smartguys.mediclinic.repository.QueueEntryRepository;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,11 +23,13 @@ import java.time.LocalDateTime;
 @Service
 public class QueueService {
     
-    @Autowired
-    private QueueEntryRepository queueEntryRepository;
+    private final QueueEntryRepository queueEntryRepository;
+    private final CounterService counterService;
     
-    @Autowired
-    private CounterService counterService;
+    public QueueService(QueueEntryRepository queueEntryRepository, CounterService counterService) {
+        this.queueEntryRepository = queueEntryRepository;
+        this.counterService = counterService;
+    }
     
     @Auditable(action = ActionType.QUEUED, module = ModuleType.INFORMATION_DESK)
     public QueueEntryResponse createQueueEntry(QueueEntryRequest request) {

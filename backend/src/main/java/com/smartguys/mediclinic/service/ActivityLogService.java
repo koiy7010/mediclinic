@@ -4,7 +4,6 @@ import com.smartguys.mediclinic.model.ActivityLog;
 import com.smartguys.mediclinic.model.enums.ActionType;
 import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.repository.ActivityLogRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -15,8 +14,11 @@ import java.time.LocalDateTime;
 @Service
 public class ActivityLogService {
     
-    @Autowired
-    private ActivityLogRepository activityLogRepository;
+    private final ActivityLogRepository activityLogRepository;
+    
+    public ActivityLogService(ActivityLogRepository activityLogRepository) {
+        this.activityLogRepository = activityLogRepository;
+    }
     
     public void saveActivityLog(ActivityLog activityLog) {
         activityLogRepository.save(activityLog);
