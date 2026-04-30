@@ -24,6 +24,9 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { selectedPatient, setPanelOpen } = usePatient()
 
+  const currentNav = navItems.find(item => item.path === pathname)
+  const CurrentIcon = currentNav?.icon
+
   return (
     <>
       <aside className={`
@@ -40,7 +43,16 @@ export default function Sidebar() {
             <p className="font-semibold text-sm text-[hsl(var(--sidebar-foreground))]">MediClinic</p>
             <p className="text-xs text-[hsl(var(--sidebar-foreground)/0.6)]">Health Records System</p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="md:hidden p-1.5 rounded-md hover:bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground)/0.6)] hover:text-[hsl(var(--sidebar-foreground))] transition-colors cursor-pointer"
+              aria-label="Close sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="px-3 py-3 border-b border-[hsl(var(--sidebar-border))] space-y-2">
@@ -74,10 +86,12 @@ export default function Sidebar() {
           <OfflineIndicator className="mb-2" />
           
           {selectedPatient && (
-            <button
-              onClick={() => setPanelOpen(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--primary)/0.2)] transition-colors text-left cursor-pointer"
-            >
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-[hsl(var(--sidebar-foreground)/0.4)] uppercase tracking-wider">Active Patient</p>
+              <button
+                onClick={() => setPanelOpen(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--primary)/0.2)] transition-colors text-left cursor-pointer"
+              >
               <div className="w-6 h-6 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center shrink-0">
                 <UserCheck className="w-3.5 h-3.5 text-white" />
               </div>
@@ -88,6 +102,7 @@ export default function Sidebar() {
                 <p className="text-[10px] text-[hsl(var(--sidebar-foreground)/0.5)] truncate">{selectedPatient.employer || 'No employer'}</p>
               </div>
             </button>
+            </div>
           )}
           <p className="text-xs text-[hsl(var(--sidebar-foreground)/0.4)]">© 2026 MediClinic</p>
         </div>
@@ -101,6 +116,12 @@ export default function Sidebar() {
         <button onClick={() => setMobileOpen(true)} className="p-2 rounded-md hover:bg-[hsl(var(--sidebar-accent))] cursor-pointer">
           <Menu className="w-5 h-5 text-[hsl(var(--sidebar-foreground))]" />
         </button>
+        {CurrentIcon && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <CurrentIcon className="w-4 h-4 text-[hsl(var(--sidebar-primary))]" />
+            <span className="text-xs font-semibold text-[hsl(var(--sidebar-foreground))]">{currentNav?.label}</span>
+          </div>
+        )}
         <div className="flex-1">
           <EnhancedGlobalSearch />
         </div>
