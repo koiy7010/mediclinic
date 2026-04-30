@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck, ConciergeBell } from 'lucide-react'
+import { Users, FlaskConical, Stethoscope, RadioTower, Menu, Activity, ScanLine, Zap, X, UserCheck, ConciergeBell, ClipboardCheck } from 'lucide-react'
 import { useState } from 'react'
 import EnhancedGlobalSearch from '@/components/EnhancedGlobalSearch'
 import { RecentPatientsDropdown } from '@/components/ui/RecentPatients'
@@ -18,6 +18,7 @@ const navItems = [
   { path: '/utz', label: 'UTZ', icon: ScanLine },
   { path: '/xray', label: 'X-Ray', icon: RadioTower },
   { path: '/ecg', label: 'ECG', icon: Zap },
+  { path: '/releasing', label: 'Releasing', icon: ClipboardCheck },
 ]
 
 export default function Sidebar() {
