@@ -119,10 +119,6 @@ export default function UtzReport() {
           </div>
         </div>
 
-        <div className="bg-[hsl(var(--primary))] rounded-lg px-4 py-2.5 flex items-center justify-center">
-          <h2 className="text-base font-bold text-[hsl(var(--primary-foreground))]">{form.report_title}</h2>
-        </div>
-
         <SectionCard title="Patient Information" id="patient-info">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div><p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Name</p><p className="text-sm font-medium mt-1">{selectedPatient.last_name}, {selectedPatient.first_name}</p></div>
