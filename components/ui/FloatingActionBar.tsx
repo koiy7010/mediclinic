@@ -84,7 +84,7 @@ export function FloatingActionBar({
 
       <div className="hidden sm:flex items-center gap-1 ml-2 pl-2 border-l border-[hsl(var(--border))]">
         <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-          Alt+S save · Alt+N next
+          Ctrl+S save{hasNext ? ' · Alt+→ next' : ''}
         </span>
       </div>
     </div>

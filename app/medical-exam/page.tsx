@@ -248,7 +248,6 @@ export default function MedicalExamination() {
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Ctrl+S to save</span>
             <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
               <Button variant="ghost" size="sm" onClick={fillAllNormal}
                 className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">

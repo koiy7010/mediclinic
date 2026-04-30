@@ -115,7 +115,6 @@ export default function EcgReport() {
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Ctrl+S to save</span>
             <PrintButton sections={PRINT_SECTIONS} />
           </div>
         </div>
