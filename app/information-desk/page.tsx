@@ -430,9 +430,9 @@ export default function InformationDesk() {
           <>
             <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowModal(false)} />
             <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4 pointer-events-none">
-              <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto pointer-events-auto animate-in fade-in zoom-in-95">
+              <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-2xl w-full max-w-2xl max-h-[80vh] pointer-events-auto animate-in fade-in zoom-in-95 flex flex-col">
                 {/* Modal header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] sticky top-0 bg-[hsl(var(--card))] z-10 rounded-t-xl">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] rounded-t-xl shrink-0">
                   <div>
                     <h2 className="text-base font-bold text-[hsl(var(--foreground))]">Add to Queue</h2>
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">Search existing patient or register a new one</p>
@@ -442,7 +442,7 @@ export default function InformationDesk() {
                   </button>
                 </div>
 
-                <div className="p-5 space-y-5">
+                <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
                   {/* Existing patient search */}
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Find Existing Patient</p>
@@ -581,7 +581,7 @@ export default function InformationDesk() {
                 </div>
 
                 {/* Modal footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl shrink-0">
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
                     Queue number: <span className="font-bold text-[hsl(var(--primary))]">#{nextQueueNumber}</span>
                   </p>
