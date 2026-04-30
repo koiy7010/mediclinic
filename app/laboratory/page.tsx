@@ -25,6 +25,7 @@ import { TabCompletionBadge, ProgressIndicator } from '@/components/ui/ProgressI
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const TABS = [
   { id: 'Urinalysis', label: 'Urinalysis', shortcut: '1' },
@@ -56,6 +57,7 @@ export default function LaboratoryReport() {
   const [isDirty, setIsDirty] = useState(false)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const saveMutation = useMutation({
     mutationFn: async () => tabData[activeTab],
@@ -119,9 +121,19 @@ export default function LaboratoryReport() {
   }
 
   function clearAllFields() {
-    setTabData({})
-    setIsDirty(true)
-    toast({ title: 'All fields cleared', variant: 'default' })
+    confirm({
+      title: 'Clear All Fields',
+      message: 'This will clear data from all 7 lab tabs. Are you sure?',
+      confirmLabel: 'Clear All',
+      cancelLabel: 'Cancel',
+      variant: 'warning',
+    }).then((confirmed) => {
+      if (confirmed) {
+        setTabData({})
+        setIsDirty(true)
+        toast({ title: 'All fields cleared', variant: 'default' })
+      }
+    })
   }
 
   function copyFromPrevious() {
@@ -186,19 +198,9 @@ export default function LaboratoryReport() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Alt+1-7 tabs</span>
-            <Button variant="outline" size="sm" onClick={copyFromPrevious} title="Copy from previous visit">
-              <Copy className="w-4 h-4 mr-1.5" /> Previous
+            <Button variant="outline" size="sm" onClick={copyFromPrevious} title={`Copy ${activeTab} from previous visit`}>
+              <Copy className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">Copy Prev</span> {activeTab}
             </Button>
-            <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
-              <Button variant="ghost" size="sm" onClick={fillAllNormal}
-                className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">
-                <CheckCheck className="w-4 h-4 mr-1.5" /> All Normal
-              </Button>
-              <Button variant="ghost" size="sm" onClick={clearAllFields}
-                className="rounded-none text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]">
-                <Eraser className="w-4 h-4 mr-1.5" /> Clear
-              </Button>
-            </div>
             <PrintButton sections={PRINT_SECTIONS} />
           </div>
         </div>
@@ -222,7 +224,11 @@ export default function LaboratoryReport() {
               <ChevronLeft className="w-4 h-4" />
             </button>
             
-            <div className="flex-1 flex overflow-x-auto">
+            <div className="flex-1 relative">
+              {/* Scroll fade indicators */}
+              <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[hsl(var(--muted))] to-transparent z-10 pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[hsl(var(--muted))] to-transparent z-10 pointer-events-none" />
+              <div className="flex overflow-x-auto scrollbar-hide">
               {TABS.map((t, index) => {
                 const hasData = tabHasData(t.id)
                 const isComplete = tabIsComplete(t.id)
@@ -242,6 +248,7 @@ export default function LaboratoryReport() {
                   </button>
                 )
               })}
+              </div>
             </div>
 
             <button
@@ -274,6 +281,7 @@ export default function LaboratoryReport() {
         nextLabel={hasNextTab ? TABS[currentTabIndex + 1].label : undefined}
         onNext={goToNextTab}
       />
+      {ConfirmDialog}
     </div>
   )
 }
