@@ -156,8 +156,8 @@ export default function XRayReport() {
           </div>
         </div>
 
-        <div className="bg-[hsl(var(--primary))] rounded-xl px-6 py-4">
-          <h2 className="text-xl font-bold text-[hsl(var(--primary-foreground))] text-center">{form.report_title}</h2>
+        <div className="bg-[hsl(var(--primary))] rounded-lg px-4 py-2.5 flex items-center justify-center">
+          <h2 className="text-base font-bold text-[hsl(var(--primary-foreground))]">{form.report_title}</h2>
         </div>
 
         <SectionCard title="Patient Information" id="patient-info">
@@ -197,13 +197,13 @@ export default function XRayReport() {
 
           <FormField label="Radiology Findings" required className="mb-4" id="findings">
             <textarea value={form.findings} onChange={e => set('findings', e.target.value)} rows={5}
-              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-none transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
+              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Describe the radiology findings…" />
           </FormField>
 
           <FormField label="Impression" required className="mb-4">
             <textarea value={form.impression} onChange={e => set('impression', e.target.value)} rows={3}
-              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-none transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
+              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Clinical impression…" />
           </FormField>
 
@@ -222,6 +222,42 @@ export default function XRayReport() {
             label="Attach X-Ray Images"
             hint="Drag and drop X-ray images here, or click to browse. Supports JPEG, PNG, and DICOM files."
           />
+          {uploadedImages.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
+                Attached ({uploadedImages.length})
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {uploadedImages.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="relative group">
+                    <div className="w-24 h-24 rounded-lg border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center">
+                      {file.type.startsWith('image/') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-[hsl(var(--muted-foreground))] text-center px-1">{file.name.split('.').pop()?.toUpperCase()}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadedImages(prev => prev.filter((_, i) => i !== idx))
+                        setIsDirty(true)
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[hsl(var(--destructive))] text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    >
+                      ×
+                    </button>
+                    <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 truncate w-24">{file.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="mt-3 text-xs text-[hsl(var(--muted-foreground))]">
             Note: For DICOM files, a specialized viewer may be required for full functionality.
           </p>
