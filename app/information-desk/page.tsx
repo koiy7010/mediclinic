@@ -265,11 +265,6 @@ export default function InformationDesk() {
               <p className="text-xs text-[hsl(var(--muted-foreground))]">{format(new Date(), 'EEEE, MMMM dd, yyyy')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setShowModal(true)}>
-              <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
-            </Button>
-          </div>
         </div>
 
         {/* Stats bar — collapsible */}
