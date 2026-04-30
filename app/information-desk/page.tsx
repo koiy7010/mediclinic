@@ -109,6 +109,7 @@ function QueueStatusBadge({ status }: { status: QueueEntry['status'] }) {
 /* ── Main Component ── */
 export default function InformationDesk() {
   const [activeView, setActiveView] = useState<'queue' | 'register'>('queue')
+  const [showModal, setShowModal] = useState(false)
   const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE)
   const [searchQuery, setSearchQuery] = useState('')
   const [regForm, setRegForm] = useState(emptyRegistration)
@@ -206,7 +207,10 @@ export default function InformationDesk() {
     setSelectedDept('')
     setSelectedPurpose('')
     setSelectedExistingPatient(null)
-    setActiveView('queue')
+    setShowModal(false)
+    setPatientSearchQuery('')
+    setRegForm(emptyRegistration)
+    setRegError('')
     toast({ title: `Queue #${entry.queue_number} — ${patientName} added`, variant: 'success' })
   }
 
@@ -272,24 +276,8 @@ export default function InformationDesk() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant={activeView === 'queue' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveView('queue')}
-            >
-              <Users className="w-4 h-4 mr-1.5" />
-              Queue
-              {todayStats.waiting > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">{todayStats.waiting}</span>
-              )}
-            </Button>
-            <Button
-              variant={activeView === 'register' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveView('register')}
-            >
-              <UserPlus className="w-4 h-4 mr-1.5" />
-              Register / Queue
+            <Button size="sm" onClick={() => setShowModal(true)}>
+              <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
             </Button>
           </div>
         </div>
@@ -329,9 +317,8 @@ export default function InformationDesk() {
           })}
         </div>
 
-        {/* ═══ QUEUE VIEW ═══ */}
-        {activeView === 'queue' && (
-          <div className="space-y-4">
+        {/* ═══ QUEUE ═══ */}
+        <div className="space-y-4">
             {/* Queue toolbar */}
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
@@ -365,7 +352,7 @@ export default function InformationDesk() {
                 <Button variant="outline" size="sm" onClick={handleClearDone}>
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Clear Done
                 </Button>
-                <Button size="sm" onClick={() => setActiveView('register')}>
+                <Button size="sm" onClick={() => setShowModal(true)}>
                   <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
                 </Button>
               </div>
@@ -436,76 +423,143 @@ export default function InformationDesk() {
               </table>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* ═══ REGISTER / QUEUE VIEW ═══ */}
-        {activeView === 'register' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Button variant="ghost" size="sm" onClick={() => setActiveView('queue')}>
-                ← Back to Queue
-              </Button>
-            </div>
-
-            {/* Existing patient search */}
-            <SectionCard title="Find Existing Patient">
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-                  <Input
-                    ref={searchInputRef}
-                    value={patientSearchQuery}
-                    onChange={e => { setPatientSearchQuery(e.target.value); setShowPatientSearch(true) }}
-                    onFocus={() => setShowPatientSearch(true)}
-                    placeholder="Search by name, employer, or ID…"
-                    className="pl-9 h-9 text-sm"
-                  />
-                  {patientSearchQuery && (
-                    <button onClick={() => { setPatientSearchQuery(''); setShowPatientSearch(false); setSelectedExistingPatient(null) }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[hsl(var(--muted))] cursor-pointer">
-                      <X className="w-3.5 h-3.5 text-[hsl(var(--muted-foreground))]" />
-                    </button>
-                  )}
+      {/* ═══ ADD TO QUEUE MODAL ═══ */}
+      {showModal && (
+          <>
+            <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowModal(false)} />
+            <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4 pointer-events-none">
+              <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto pointer-events-auto animate-in fade-in zoom-in-95">
+                {/* Modal header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] sticky top-0 bg-[hsl(var(--card))] z-10 rounded-t-xl">
+                  <div>
+                    <h2 className="text-base font-bold text-[hsl(var(--foreground))]">Add to Queue</h2>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Search existing patient or register a new one</p>
+                  </div>
+                  <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] transition-colors cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {showPatientSearch && patientResults.length > 0 && (
-                  <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden">
-                    {patientResults.map((p: any) => (
-                      <button
-                        key={p.id}
-                        onClick={() => {
-                          setSelectedExistingPatient(p)
-                          setPatientSearchQuery(`${p.last_name}, ${p.first_name}`)
-                          setShowPatientSearch(false)
-                        }}
-                        className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-[hsl(var(--accent)/0.5)] transition-colors cursor-pointer border-b border-[hsl(var(--border))] last:border-b-0"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{p.last_name}, {p.first_name}</p>
-                          <p className="text-xs text-[hsl(var(--muted-foreground))]">{p.employer || '—'} · {calcAge(p.birthdate)} yrs · {p.gender || '—'}</p>
-                        </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">{p.id}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedExistingPatient && (
-                  <div className="bg-[hsl(var(--accent)/0.3)] border border-[hsl(var(--accent))] rounded-lg px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold">{selectedExistingPatient.last_name}, {selectedExistingPatient.first_name}</p>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                          {selectedExistingPatient.employer || '—'} · {calcAge(selectedExistingPatient.birthdate)} yrs · {selectedExistingPatient.gender || '—'} · {selectedExistingPatient.contact_number || 'No contact'}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => { setSelectedExistingPatient(null); setPatientSearchQuery('') }}>
-                        <X className="w-4 h-4" />
-                      </Button>
+                <div className="p-5 space-y-5">
+                  {/* Existing patient search */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Find Existing Patient</p>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+                      <Input
+                        ref={searchInputRef}
+                        value={patientSearchQuery}
+                        onChange={e => { setPatientSearchQuery(e.target.value); setShowPatientSearch(true) }}
+                        onFocus={() => setShowPatientSearch(true)}
+                        placeholder="Search by name, employer, or ID…"
+                        className="pl-9 h-9 text-sm"
+                      />
+                      {patientSearchQuery && (
+                        <button onClick={() => { setPatientSearchQuery(''); setShowPatientSearch(false); setSelectedExistingPatient(null) }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[hsl(var(--muted))] cursor-pointer">
+                          <X className="w-3.5 h-3.5 text-[hsl(var(--muted-foreground))]" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Department & Purpose for existing patient */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    {showPatientSearch && patientResults.length > 0 && (
+                      <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                        {patientResults.map((p: any) => (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              setSelectedExistingPatient(p)
+                              setPatientSearchQuery(`${p.last_name}, ${p.first_name}`)
+                              setShowPatientSearch(false)
+                            }}
+                            className="w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-[hsl(var(--accent)/0.5)] transition-colors cursor-pointer border-b border-[hsl(var(--border))] last:border-b-0"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{p.last_name}, {p.first_name}</p>
+                              <p className="text-xs text-[hsl(var(--muted-foreground))]">{p.employer || '—'} · {calcAge(p.birthdate)} yrs · {p.gender || '—'}</p>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">{p.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedExistingPatient && (
+                      <div className="bg-[hsl(var(--accent)/0.3)] border border-[hsl(var(--accent))] rounded-lg px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold">{selectedExistingPatient.last_name}, {selectedExistingPatient.first_name}</p>
+                            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                              {selectedExistingPatient.employer || '—'} · {calcAge(selectedExistingPatient.birthdate)} yrs · {selectedExistingPatient.gender || '—'}
+                            </p>
+                          </div>
+                          <button onClick={() => { setSelectedExistingPatient(null); setPatientSearchQuery('') }} className="p-1 rounded hover:bg-[hsl(var(--muted))] cursor-pointer">
+                            <X className="w-3.5 h-3.5 text-[hsl(var(--muted-foreground))]" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Divider */}
+                  {!selectedExistingPatient && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                      <span className="text-xs text-[hsl(var(--muted-foreground))] font-medium">or register new</span>
+                      <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                    </div>
+                  )}
+
+                  {/* New patient form — only show if no existing patient selected */}
+                  {!selectedExistingPatient && (
+                    <div className="space-y-3">
+                      {regError && (
+                        <div className="bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))] px-3 py-2 rounded-lg text-sm font-medium">
+                          {regError}
+                        </div>
+                      )}
+                      {duplicateWarning && (
+                        <div className="bg-[hsl(var(--accent)/0.4)] border border-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] px-3 py-2 rounded-lg text-sm flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                          <p className="text-xs">Patient <strong>{duplicateWarning.last_name}, {duplicateWarning.first_name}</strong> (ID: {duplicateWarning.id}) already exists.</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <FormField label="Last Name" required>
+                          <Input value={regForm.last_name} onChange={e => setReg('last_name', e.target.value)} placeholder="Last name"
+                            className={cn("h-8 text-sm", !regForm.last_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
+                        </FormField>
+                        <FormField label="First Name" required>
+                          <Input value={regForm.first_name} onChange={e => setReg('first_name', e.target.value)} placeholder="First name"
+                            className={cn("h-8 text-sm", !regForm.first_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
+                        </FormField>
+                        <FormField label="Contact Number">
+                          <Input value={regForm.contact_number} onChange={e => setReg('contact_number', e.target.value)} placeholder="+63 XXX XXX XXXX" className="h-8 text-sm" />
+                        </FormField>
+                        <FormField label="Employer">
+                          <Input value={regForm.employer} onChange={e => setReg('employer', e.target.value)} placeholder="Company" className="h-8 text-sm" />
+                        </FormField>
+                        <FormField label="Birthdate">
+                          <Input type="date" value={regForm.birthdate} onChange={e => setReg('birthdate', e.target.value)} className="h-8 text-sm" />
+                        </FormField>
+                        <FormField label="Gender">
+                          <Select value={regForm.gender} onValueChange={v => setReg('gender', v)}>
+                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                            <SelectContent>
+                              {GENDERS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Department & Purpose — always visible */}
+                  <div className="border-t border-[hsl(var(--border))] pt-4 space-y-3">
+                    <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Assign to Queue</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <FormField label="Department" required>
                         <Select value={selectedDept} onValueChange={setSelectedDept}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select department…" /></SelectTrigger>
@@ -523,111 +577,37 @@ export default function InformationDesk() {
                         </Select>
                       </FormField>
                     </div>
-                    <div className="mt-3">
+                  </div>
+                </div>
+
+                {/* Modal footer */}
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl">
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Queue number: <span className="font-bold text-[hsl(var(--primary))]">#{nextQueueNumber}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
+                    {selectedExistingPatient ? (
                       <Button size="sm" onClick={() => addToQueue(
                         selectedExistingPatient.id,
                         `${selectedExistingPatient.last_name}, ${selectedExistingPatient.first_name}`,
                         selectedExistingPatient.employer
                       )}>
-                        <Plus className="w-4 h-4 mr-1.5" /> Add to Queue (#{nextQueueNumber})
+                        <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
                       </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </SectionCard>
-
-            {/* New patient registration */}
-            <SectionCard title="Register New Patient">
-              {regError && (
-                <div className="bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))] px-4 py-2.5 rounded-lg text-sm font-medium mb-4">
-                  {regError}
-                </div>
-              )}
-
-              {duplicateWarning && (
-                <div className="bg-[hsl(var(--accent)/0.4)] border border-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] px-4 py-2.5 rounded-lg text-sm mb-4 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium">Possible duplicate detected</p>
-                    <p className="text-xs mt-0.5">A patient named <strong>{duplicateWarning.last_name}, {duplicateWarning.first_name}</strong> (ID: {duplicateWarning.id}) already exists. Consider searching for them above instead.</p>
+                    ) : (
+                      <Button size="sm" onClick={handleRegisterAndQueue}>
+                        <UserPlus className="w-4 h-4 mr-1.5" /> Register & Queue
+                      </Button>
+                    )}
                   </div>
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <FormField label="Last Name" required>
-                  <Input value={regForm.last_name} onChange={e => setReg('last_name', e.target.value)} placeholder="Last name"
-                    className={cn("h-8 text-sm", !regForm.last_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
-                </FormField>
-                <FormField label="First Name" required>
-                  <Input value={regForm.first_name} onChange={e => setReg('first_name', e.target.value)} placeholder="First name"
-                    className={cn("h-8 text-sm", !regForm.first_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
-                </FormField>
-                <FormField label="Middle Name">
-                  <Input value={regForm.middle_name} onChange={e => setReg('middle_name', e.target.value)} placeholder="Middle name" className="h-8 text-sm" />
-                </FormField>
-                <FormField label="Contact Number">
-                  <Input value={regForm.contact_number} onChange={e => setReg('contact_number', e.target.value)} placeholder="+63 XXX XXX XXXX" className="h-8 text-sm" />
-                </FormField>
-                <FormField label="Employer">
-                  <Input value={regForm.employer} onChange={e => setReg('employer', e.target.value)} placeholder="Company" className="h-8 text-sm" />
-                </FormField>
-                <FormField label="Birthdate">
-                  <Input type="date" value={regForm.birthdate} onChange={e => setReg('birthdate', e.target.value)} className="h-8 text-sm" />
-                </FormField>
-                <FormField label="Gender">
-                  <Select value={regForm.gender} onValueChange={v => setReg('gender', v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent>
-                      {GENDERS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Address" className="sm:col-span-2">
-                  <Input value={regForm.address} onChange={e => setReg('address', e.target.value)} placeholder="Full address" className="h-8 text-sm" />
-                </FormField>
               </div>
-
-              {/* Department & Purpose */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-[hsl(var(--border))]">
-                <FormField label="Assign to Department" required>
-                  <Select value={selectedDept} onValueChange={setSelectedDept}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select department…" /></SelectTrigger>
-                    <SelectContent>
-                      {DEPARTMENTS.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Purpose of Visit" required>
-                  <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select purpose…" /></SelectTrigger>
-                    <SelectContent>
-                      {PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-[hsl(var(--border))]">
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  Queue number: <span className="font-bold text-[hsl(var(--primary))]">#{nextQueueNumber}</span>
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setRegForm(emptyRegistration); setRegError(''); setSelectedDept(''); setSelectedPurpose('') }}>
-                    Clear
-                  </Button>
-                  <Button size="sm" onClick={handleRegisterAndQueue}>
-                    <UserPlus className="w-4 h-4 mr-1.5" /> Register & Add to Queue
-                  </Button>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
+            </div>
+          </>
         )}
-      </div>
 
-      {ConfirmDialog}
+        {ConfirmDialog}
     </div>
   )
 }
