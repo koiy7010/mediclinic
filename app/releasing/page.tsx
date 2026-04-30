@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FormField } from '@/components/ui/FormField'
 import {
   ClipboardCheck, Search, X, Check, Clock, Package,
-  Printer, User, Building2, FileText, ChevronDown
+  Printer, User, Building2, FileText, ChevronDown, Mail, Globe, Send
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { mockPatients, mockLabData, mockRadiologyReports, mockMedicalExams } from '@/lib/mockData'
@@ -27,8 +27,10 @@ interface ReleaseEntry {
   patient_id: string
   patient_name: string
   employer: string
+  email?: string
   reports: ReportStatus[]
   status: 'ready' | 'released' | 'pending'
+  release_method?: 'pickup' | 'email' | 'portal'
   released_at?: string
   received_by?: string
   receiver_type?: 'patient' | 'representative' | 'company'
@@ -45,6 +47,13 @@ const RECEIVER_TYPES = [
 
 /* ── Build release entries from mock data ── */
 function buildReleaseEntries(): ReleaseEntry[] {
+  const mockEmails: Record<string, string> = {
+    p1: 'maria.santos@email.com',
+    p2: 'juan.reyes@email.com',
+    p3: 'ana.garcia@email.com',
+    p4: 'carlos.mendoza@email.com',
+    p5: '',
+  }
   return mockPatients.map(p => {
     const reports: ReportStatus[] = []
     const labData = mockLabData[p.id]
@@ -75,6 +84,7 @@ function buildReleaseEntries(): ReleaseEntry[] {
       patient_id: p.id,
       patient_name: `${p.last_name}, ${p.first_name}`,
       employer: p.employer || '—',
+      email: mockEmails[p.id] || '',
       reports,
       status,
     }
@@ -109,27 +119,44 @@ function ReleaseModal({
   onClose,
 }: {
   entry: ReleaseEntry
-  onRelease: (receiverType: string, receiverName: string) => void
+  onRelease: (method: string, receiverType: string, receiverName: string, email: string) => void
   onClose: () => void
 }) {
+  const [method, setMethod] = useState<'pickup' | 'email' | 'portal'>('pickup')
   const [receiverType, setReceiverType] = useState('patient')
   const [receiverName, setReceiverName] = useState('')
+  const [email, setEmail] = useState(entry.email || '')
 
   const handleRelease = () => {
-    if (receiverType === 'representative' && !receiverName.trim()) {
-      toast({ title: "Please enter the representative's name", variant: 'default' })
+    if (method === 'pickup' && receiverType !== 'patient' && !receiverName.trim()) {
+      toast({ title: "Please enter the receiver's name", variant: 'default' })
       return
     }
-    onRelease(receiverType, receiverType === 'patient' ? entry.patient_name : receiverName || entry.employer)
+    if (method === 'email' && !email.trim()) {
+      toast({ title: 'Please enter an email address', variant: 'default' })
+      return
+    }
+    const name = method === 'pickup'
+      ? (receiverType === 'patient' ? entry.patient_name : receiverName || entry.employer)
+      : method === 'email'
+        ? email
+        : 'Patient Portal'
+    onRelease(method, receiverType, name, email)
   }
 
   const doneReports = entry.reports.filter(r => r.done)
 
+  const METHODS = [
+    { value: 'pickup' as const, label: 'Pick-up', icon: Package, desc: 'Hand over at the desk' },
+    { value: 'email' as const, label: 'Email', icon: Mail, desc: 'Send as PDF to email' },
+    { value: 'portal' as const, label: 'Portal', icon: Globe, desc: 'Publish to patient portal' },
+  ]
+
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 pointer-events-none">
-        <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-2xl w-full max-w-md pointer-events-auto animate-in fade-in zoom-in-95 flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4 pointer-events-none">
+        <div className="bg-[hsl(var(--card))] rounded-xl border border-[hsl(var(--border))] shadow-2xl w-full max-w-md max-h-[80vh] pointer-events-auto animate-in fade-in zoom-in-95 flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] shrink-0">
             <div>
@@ -142,7 +169,7 @@ function ReleaseModal({
           </div>
 
           {/* Body */}
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
             {/* Reports being released */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Reports to Release</p>
@@ -151,52 +178,102 @@ function ReleaseModal({
               </div>
             </div>
 
-            {/* Received by */}
+            {/* Release method */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Received By</p>
-              <div className="flex flex-wrap gap-2">
-                {RECEIVER_TYPES.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => { setReceiverType(t.value); if (t.value === 'patient') setReceiverName('') }}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer",
-                      receiverType === t.value
-                        ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
-                        : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/0.5)]"
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Release Method</p>
+              <div className="grid grid-cols-3 gap-2">
+                {METHODS.map(m => {
+                  const Icon = m.icon
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      onClick={() => setMethod(m.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border text-center transition-all cursor-pointer",
+                        method === m.value
+                          ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
+                          : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/0.5)] hover:text-[hsl(var(--foreground))]"
+                      )}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-xs font-medium">{m.label}</span>
+                    </button>
+                  )
+                })}
               </div>
-              {receiverType === 'representative' && (
-                <Input
-                  value={receiverName}
-                  onChange={e => setReceiverName(e.target.value)}
-                  placeholder="Representative's full name"
-                  className="h-8 text-sm mt-2"
-                  autoFocus
-                />
-              )}
-              {receiverType === 'company' && (
-                <Input
-                  value={receiverName}
-                  onChange={e => setReceiverName(e.target.value)}
-                  placeholder="HR / Company representative name"
-                  className="h-8 text-sm mt-2"
-                  autoFocus
-                />
-              )}
             </div>
+
+            {/* Pick-up fields */}
+            {method === 'pickup' && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Received By</p>
+                <div className="flex flex-wrap gap-2">
+                  {RECEIVER_TYPES.map(t => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => { setReceiverType(t.value); if (t.value === 'patient') setReceiverName('') }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer",
+                        receiverType === t.value
+                          ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
+                          : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/0.5)]"
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                {(receiverType === 'representative' || receiverType === 'company') && (
+                  <Input
+                    value={receiverName}
+                    onChange={e => setReceiverName(e.target.value)}
+                    placeholder={receiverType === 'representative' ? "Representative's full name" : 'HR / Company representative name'}
+                    className="h-8 text-sm"
+                    autoFocus
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Email fields */}
+            {method === 'email' && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Send To</p>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="patient@email.com"
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                {email && (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Results will be sent as PDF attachment to this email.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Portal info */}
+            {method === 'portal' && (
+              <div className="bg-[hsl(var(--accent)/0.3)] border border-[hsl(var(--accent))] rounded-lg px-4 py-3">
+                <p className="text-sm text-[hsl(var(--accent-foreground))]">
+                  Results will be published to the patient portal. The patient can view and download them online.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl shrink-0">
             <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
             <Button onClick={handleRelease}>
-              <Package className="w-4 h-4 mr-1.5" /> Release
+              {method === 'pickup' && <><Package className="w-4 h-4 mr-1.5" /> Release</>}
+              {method === 'email' && <><Send className="w-4 h-4 mr-1.5" /> Send Email</>}
+              {method === 'portal' && <><Globe className="w-4 h-4 mr-1.5" /> Publish</>}
             </Button>
           </div>
         </div>
@@ -229,13 +306,14 @@ export default function ReleasingPage() {
     pending: entries.filter(e => e.status === 'pending').length,
   }
 
-  function handleRelease(entryId: string, receiverType: string, receiverName: string) {
+  function handleRelease(entryId: string, method: string, receiverType: string, receiverName: string) {
     const claimNo = generateClaimNo()
     setEntries(prev => prev.map(e =>
       e.patient_id === entryId
         ? {
             ...e,
             status: 'released' as const,
+            release_method: method as ReleaseEntry['release_method'],
             released_at: new Date().toISOString(),
             received_by: receiverName,
             receiver_type: receiverType as any,
@@ -244,7 +322,8 @@ export default function ReleasingPage() {
         : e
     ))
     setReleaseTarget(null)
-    toast({ title: `Results released — Claim #${claimNo}`, variant: 'success' })
+    const methodLabel = method === 'email' ? 'Sent via email' : method === 'portal' ? 'Published to portal' : 'Released'
+    toast({ title: `${methodLabel} — Claim #${claimNo}`, variant: 'success' })
   }
 
   function handlePrint(entry: ReleaseEntry) {
@@ -370,7 +449,9 @@ export default function ReleasingPage() {
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm">{e.received_by}</p>
-                      <p className="text-[10px] text-[hsl(var(--muted-foreground))] capitalize">{e.receiver_type === 'patient' ? 'Self' : e.receiver_type}</p>
+                      <p className="text-[10px] text-[hsl(var(--muted-foreground))] capitalize">
+                        {e.release_method === 'email' ? '📧 Email' : e.release_method === 'portal' ? '🌐 Portal' : e.receiver_type === 'patient' ? 'Pick-up · Self' : `Pick-up · ${e.receiver_type}`}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hidden md:table-cell">
                       {e.released_at ? format(new Date(e.released_at), 'hh:mm a') : '—'}
@@ -443,7 +524,7 @@ export default function ReleasingPage() {
       {releaseTarget && (
         <ReleaseModal
           entry={releaseTarget}
-          onRelease={(type, name) => handleRelease(releaseTarget.patient_id, type, name)}
+          onRelease={(method, type, name, email) => handleRelease(releaseTarget.patient_id, method, type, name)}
           onClose={() => setReleaseTarget(null)}
         />
       )}
