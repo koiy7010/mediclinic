@@ -114,7 +114,6 @@ export default function InformationDesk() {
   const [searchQuery, setSearchQuery] = useState('')
   const [regForm, setRegForm] = useState(emptyRegistration)
   const [regError, setRegError] = useState('')
-  const [selectedDept, setSelectedDept] = useState('')
   const [selectedPurpose, setSelectedPurpose] = useState('')
   const [queueFilter, setQueueFilter] = useState<'all' | 'waiting' | 'in-progress' | 'done'>('all')
   const [patientSearchQuery, setPatientSearchQuery] = useState('')
@@ -124,6 +123,13 @@ export default function InformationDesk() {
   const { confirm, ConfirmDialog } = useConfirm()
   const { setSelectedPatient } = usePatient()
 
+  // Auto-focus search when modal opens
+  useEffect(() => {
+    if (showModal) {
+      setTimeout(() => searchInputRef.current?.focus(), 100)
+    }
+  }, [showModal])
+
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ['patients'],
     queryFn: async () => mockPatients,
@@ -131,14 +137,6 @@ export default function InformationDesk() {
 
   // Queue counter
   const nextQueueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queue_number)) + 1 : 1
-
-  // Department counts
-  const deptCounts = DEPARTMENTS.map(d => ({
-    ...d,
-    waiting: queue.filter(q => q.department === d.id && q.status === 'waiting').length,
-    inProgress: queue.filter(q => q.department === d.id && q.status === 'in-progress').length,
-    total: queue.filter(q => q.department === d.id && q.status !== 'done').length,
-  }))
 
   // Filtered queue
   const filteredQueue = queue
@@ -184,10 +182,6 @@ export default function InformationDesk() {
   }
 
   function addToQueue(patientId: string, patientName: string, employer: string) {
-    if (!selectedDept) {
-      toast({ title: 'Please select a department', variant: 'default' })
-      return
-    }
     if (!selectedPurpose) {
       toast({ title: 'Please select a purpose of visit', variant: 'default' })
       return
@@ -197,14 +191,13 @@ export default function InformationDesk() {
       patient_id: patientId,
       patient_name: patientName,
       employer: employer || '—',
-      department: selectedDept,
+      department: '',
       purpose: selectedPurpose,
       status: 'waiting',
       queue_number: nextQueueNumber,
       created_at: new Date().toISOString(),
     }
     setQueue(prev => [...prev, entry])
-    setSelectedDept('')
     setSelectedPurpose('')
     setSelectedExistingPatient(null)
     setShowModal(false)
@@ -217,10 +210,6 @@ export default function InformationDesk() {
   function handleRegisterAndQueue() {
     if (!regForm.last_name || !regForm.first_name) {
       setRegError('Last Name and First Name are required.')
-      return
-    }
-    if (!selectedDept) {
-      setRegError('Please select a department.')
       return
     }
     if (!selectedPurpose) {
@@ -302,21 +291,6 @@ export default function InformationDesk() {
           ))}
         </div>
 
-        {/* Department overview */}
-        <div className="flex flex-wrap gap-2">
-          {deptCounts.map(d => {
-            const Icon = d.icon
-            return (
-              <div key={d.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-sm text-[hsl(var(--foreground))]">
-                <Icon className="w-4 h-4 text-[hsl(var(--primary))]" />
-                <span className="font-medium">{d.label}</span>
-                <span className="text-xs text-[hsl(var(--muted-foreground))]">{d.waiting} waiting</span>
-                {d.inProgress > 0 && <span className="text-xs text-[hsl(var(--muted-foreground))]">· {d.inProgress} active</span>}
-              </div>
-            )
-          })}
-        </div>
-
         {/* ═══ QUEUE ═══ */}
         <div className="space-y-4">
             {/* Queue toolbar */}
@@ -366,8 +340,7 @@ export default function InformationDesk() {
                     <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-16">#</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Patient</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide hidden sm:table-cell">Employer</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Department</th>
-                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide hidden md:table-cell">Purpose</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Purpose</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Status</th>
                     <th className="px-4 py-2.5 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide w-28">Action</th>
                   </tr>
@@ -388,8 +361,7 @@ export default function InformationDesk() {
                         <p className="text-[10px] text-[hsl(var(--muted-foreground))] sm:hidden">{q.employer}</p>
                       </td>
                       <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">{q.employer}</td>
-                      <td className="px-4 py-2.5"><DeptBadge department={q.department} /></td>
-                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden md:table-cell">{q.purpose}</td>
+                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))]">{q.purpose}</td>
                       <td className="px-4 py-2.5"><QueueStatusBadge status={q.status} /></td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1">
@@ -414,7 +386,7 @@ export default function InformationDesk() {
                   ))}
                   {filteredQueue.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center py-12 text-sm text-[hsl(var(--muted-foreground))]">
+                      <td colSpan={6} className="text-center py-12 text-sm text-[hsl(var(--muted-foreground))]">
                         {searchQuery ? 'No matching queue entries' : 'Queue is empty — add patients to get started'}
                       </td>
                     </tr>
@@ -435,7 +407,7 @@ export default function InformationDesk() {
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] rounded-t-xl shrink-0">
                   <div>
                     <h2 className="text-base font-bold text-[hsl(var(--foreground))]">Add to Queue</h2>
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Search existing patient or register a new one</p>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Queue #{nextQueueNumber}</p>
                   </div>
                   <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] transition-colors cursor-pointer">
                     <X className="w-4 h-4" />
@@ -528,21 +500,15 @@ export default function InformationDesk() {
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <FormField label="Last Name" required>
-                          <Input value={regForm.last_name} onChange={e => setReg('last_name', e.target.value)} placeholder="Last name"
+                          <Input value={regForm.last_name} onChange={e => setReg('last_name', e.target.value)} placeholder="Last name" autoFocus
                             className={cn("h-8 text-sm", !regForm.last_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
                         </FormField>
                         <FormField label="First Name" required>
                           <Input value={regForm.first_name} onChange={e => setReg('first_name', e.target.value)} placeholder="First name"
                             className={cn("h-8 text-sm", !regForm.first_name && regError ? 'border-[hsl(var(--destructive))]' : '')} />
                         </FormField>
-                        <FormField label="Contact Number">
-                          <Input value={regForm.contact_number} onChange={e => setReg('contact_number', e.target.value)} placeholder="+63 XXX XXX XXXX" className="h-8 text-sm" />
-                        </FormField>
                         <FormField label="Employer">
                           <Input value={regForm.employer} onChange={e => setReg('employer', e.target.value)} placeholder="Company" className="h-8 text-sm" />
-                        </FormField>
-                        <FormField label="Birthdate">
-                          <Input type="date" value={regForm.birthdate} onChange={e => setReg('birthdate', e.target.value)} className="h-8 text-sm" />
                         </FormField>
                         <FormField label="Gender">
                           <Select value={regForm.gender} onValueChange={v => setReg('gender', v)}>
@@ -556,39 +522,34 @@ export default function InformationDesk() {
                     </div>
                   )}
 
-                  {/* Department & Purpose — always visible */}
-                  <div className="border-t border-[hsl(var(--border))] pt-4 space-y-3">
-                    <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Assign to Queue</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <FormField label="Department" required>
-                        <Select value={selectedDept} onValueChange={setSelectedDept}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select department…" /></SelectTrigger>
-                          <SelectContent>
-                            {DEPARTMENTS.map(d => <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-                      <FormField label="Purpose of Visit" required>
-                        <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select purpose…" /></SelectTrigger>
-                          <SelectContent>
-                            {PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
+                  {/* Purpose of visit — quick tap buttons */}
+                  <div className="border-t border-[hsl(var(--border))] pt-4 space-y-2">
+                    <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Purpose of Visit</p>
+                    <div className="flex flex-wrap gap-2">
+                      {PURPOSES.map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setSelectedPurpose(p)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer",
+                            selectedPurpose === p
+                              ? "bg-[hsl(var(--primary))] text-white border-[hsl(var(--primary))]"
+                              : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary)/0.5)] hover:text-[hsl(var(--foreground))]"
+                          )}
+                        >
+                          {p}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
                 {/* Modal footer */}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl shrink-0">
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Queue number: <span className="font-bold text-[hsl(var(--primary))]">#{nextQueueNumber}</span>
-                  </p>
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] rounded-b-xl shrink-0">
                     <Button variant="outline" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
                     {selectedExistingPatient ? (
-                      <Button size="sm" onClick={() => addToQueue(
+                      <Button onClick={() => addToQueue(
                         selectedExistingPatient.id,
                         `${selectedExistingPatient.last_name}, ${selectedExistingPatient.first_name}`,
                         selectedExistingPatient.employer
@@ -596,11 +557,10 @@ export default function InformationDesk() {
                         <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
                       </Button>
                     ) : (
-                      <Button size="sm" onClick={handleRegisterAndQueue}>
+                      <Button onClick={handleRegisterAndQueue}>
                         <UserPlus className="w-4 h-4 mr-1.5" /> Register & Queue
                       </Button>
                     )}
-                  </div>
                 </div>
               </div>
             </div>
