@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +18,11 @@ import java.util.List;
 @Tag(name = "UTZ Reports", description = "UTZ report management operations")
 public class UtzReportController {
     
-    @Autowired
-    private UtzReportService utzReportService;
+    private final UtzReportService utzReportService;
+    
+    public UtzReportController(UtzReportService utzReportService) {
+        this.utzReportService = utzReportService;
+    }
     
     @PostMapping
     @Operation(summary = "Create UTZ report", description = "Creates a new UTZ report for a patient")

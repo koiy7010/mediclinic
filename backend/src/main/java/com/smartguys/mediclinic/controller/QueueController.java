@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,8 +25,11 @@ import java.util.Map;
 @Tag(name = "Queue Management", description = "Patient queue management operations")
 public class QueueController {
     
-    @Autowired
-    private QueueService queueService;
+    private final QueueService queueService;
+    
+    public QueueController(QueueService queueService) {
+        this.queueService = queueService;
+    }
     
     @PostMapping
     @Operation(summary = "Create queue entry", description = "Adds a patient to the queue")

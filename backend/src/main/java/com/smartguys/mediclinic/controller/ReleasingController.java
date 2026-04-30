@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +19,11 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Result Releasing", description = "Patient result releasing operations")
 public class ReleasingController {
     
-    @Autowired
-    private ReleasingService releasingService;
+    private final ReleasingService releasingService;
+    
+    public ReleasingController(ReleasingService releasingService) {
+        this.releasingService = releasingService;
+    }
     
     @GetMapping
     @Operation(summary = "List release records", description = "Retrieves release records with optional filters")

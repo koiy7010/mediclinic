@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -20,8 +19,11 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Patients", description = "Patient management operations")
 public class PatientController {
     
-    @Autowired
-    private PatientService patientService;
+    private final PatientService patientService;
+    
+    public PatientController(PatientService patientService) {
+        this.patientService = patientService;
+    }
     
     @PostMapping
     @Operation(summary = "Create a new patient", description = "Creates a new patient record")

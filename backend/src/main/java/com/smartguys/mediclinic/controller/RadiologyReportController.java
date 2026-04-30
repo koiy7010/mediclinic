@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +18,11 @@ import java.util.List;
 @Tag(name = "X-Ray Reports", description = "Radiology report management operations")
 public class RadiologyReportController {
     
-    @Autowired
-    private RadiologyReportService radiologyReportService;
+    private final RadiologyReportService radiologyReportService;
+    
+    public RadiologyReportController(RadiologyReportService radiologyReportService) {
+        this.radiologyReportService = radiologyReportService;
+    }
     
     @PostMapping
     @Operation(summary = "Create X-Ray report", description = "Creates a new radiology report for a patient")

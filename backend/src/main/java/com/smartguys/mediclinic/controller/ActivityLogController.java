@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,8 +22,11 @@ import java.time.LocalDate;
 @Tag(name = "Activity Logs", description = "System activity log operations")
 public class ActivityLogController {
     
-    @Autowired
-    private ActivityLogService activityLogService;
+    private final ActivityLogService activityLogService;
+    
+    public ActivityLogController(ActivityLogService activityLogService) {
+        this.activityLogService = activityLogService;
+    }
     
     @GetMapping
     @Operation(summary = "Get activity logs", description = "Retrieves activity logs with optional filters")

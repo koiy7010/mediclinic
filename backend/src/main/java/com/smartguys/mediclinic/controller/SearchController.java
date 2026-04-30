@@ -5,7 +5,6 @@ import com.smartguys.mediclinic.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,8 +15,11 @@ import java.util.List;
 @Tag(name = "Global Search", description = "Global patient search operations")
 public class SearchController {
     
-    @Autowired
-    private SearchService searchService;
+    private final SearchService searchService;
+    
+    public SearchController(SearchService searchService) {
+        this.searchService = searchService;
+    }
     
     @GetMapping
     @Operation(summary = "Global patient search", description = "Searches for patients across multiple fields with report availability")

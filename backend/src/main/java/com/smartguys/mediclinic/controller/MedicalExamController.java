@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +18,11 @@ import java.util.List;
 @Tag(name = "Medical Exams", description = "Medical examination management operations")
 public class MedicalExamController {
     
-    @Autowired
-    private MedicalExamService medicalExamService;
+    private final MedicalExamService medicalExamService;
+    
+    public MedicalExamController(MedicalExamService medicalExamService) {
+        this.medicalExamService = medicalExamService;
+    }
     
     @PostMapping
     @Operation(summary = "Create medical exam", description = "Creates a new medical examination for a patient")
