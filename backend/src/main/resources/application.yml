@@ -4,12 +4,20 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/mediclinic
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
 
 server:
   port: 8080
 
 cors:
-  allowed-origins: http://localhost:3000
+  allowed-origins: http://localhost:3000,http://192.168.0.249:3000
 
 springdoc:
   api-docs:

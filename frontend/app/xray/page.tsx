@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RadioTower } from 'lucide-react'
 import { format } from 'date-fns'
-import { mockRadiologyReports } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
+import { apiClient } from '@/lib/api-client'
 import { NormalToggle } from '@/components/ui/NormalToggle'
 import { toast } from '@/lib/use-toast'
 import { useCtrlS } from '@/lib/use-ctrl-s'
@@ -21,6 +21,7 @@ import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { VisitSelector } from '@/components/ui/VisitSelector'
 import { cn } from '@/lib/utils'
 
 const TEMPLATES = [
@@ -36,45 +37,99 @@ const PRINT_SECTIONS = [
   { id: 'findings', label: 'Findings & Impression', defaultChecked: true },
 ]
 
+const EMPTY_FORM = {
+  report_title: 'Chest PA (Postero-Anterior)',
+  result_date: format(new Date(), 'yyyy-MM-dd'),
+  examination_type: 'X-Ray',
+  xray_no: '',
+  findings: '',
+  impression: '',
+  is_normal: null as boolean | null,
+}
+
 function calcAge(birthdate: string) {
   if (!birthdate) return '—'
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
 }
 
 export default function XRayReport() {
-  const [form, setForm] = useState({
-    report_title: 'Chest PA (Postero-Anterior)',
-    result_date: format(new Date(), 'yyyy-MM-dd'),
-    examination_type: 'X-Ray',
-    xray_no: '',
-    findings: '',
-    impression: '',
-    is_normal: null as boolean | null,
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [uploadedImages, setUploadedImages] = useState<File[]>([])
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null) // null = new visit
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
   const { confirm, ConfirmDialog } = useConfirm()
 
+  const { data: xrayReports } = useQuery<any[]>({
+    queryKey: ['xray-reports', selectedPatient?.id],
+    queryFn: () => apiClient.xrayReports.list(selectedPatient!.id),
+    enabled: !!selectedPatient,
+  })
+
+  // On first load, default to the most recent visit
   useEffect(() => {
-    if (selectedPatient) {
-      const reports = mockRadiologyReports[selectedPatient.id]
-      if (reports && reports.length > 0) {
-        const r = reports[0]
-        setForm({ report_title: r.report_title, result_date: r.result_date, examination_type: r.examination_type, xray_no: r.xray_no, findings: r.findings, impression: r.impression, is_normal: r.is_normal })
-        setIsDirty(false)
-      }
+    if (xrayReports && xrayReports.length > 0 && selectedVisitId === null) {
+      const latest = xrayReports.reduce((a: any, b: any) =>
+        (b.resultDate ?? '') > (a.resultDate ?? '') ? b : a
+      )
+      setSelectedVisitId(latest.id)
     }
-  }, [selectedPatient])
+  }, [xrayReports])
+
+  // When selected visit changes, load its data (or reset for new visit)
+  useEffect(() => {
+    if (selectedVisitId === null) {
+      setForm({ ...EMPTY_FORM, result_date: format(new Date(), 'yyyy-MM-dd') })
+      setActiveTemplate(null)
+      setIsDirty(false)
+      return
+    }
+    const r = xrayReports?.find((x: any) => x.id === selectedVisitId)
+    if (r) {
+      setForm({
+        report_title: r.reportTitle ?? r.report_title ?? 'Chest PA (Postero-Anterior)',
+        result_date: r.resultDate ?? r.result_date ?? format(new Date(), 'yyyy-MM-dd'),
+        examination_type: r.examinationType ?? r.examination_type ?? 'X-Ray',
+        xray_no: r.xrayNo ?? r.xray_no ?? '',
+        findings: r.findings ?? '',
+        impression: r.impression ?? '',
+        is_normal: r.isNormal ?? r.is_normal ?? null,
+      })
+      setActiveTemplate(null)
+      setIsDirty(false)
+    }
+  }, [selectedVisitId, xrayReports])
+
+  // Reset visit selection when patient changes
+  useEffect(() => {
+    setSelectedVisitId(null)
+  }, [selectedPatient?.id])
 
   const saveMutation = useMutation({
-    mutationFn: async () => form,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['radiology'] })
+    mutationFn: async () => {
+      const payload = {
+        reportTitle: form.report_title,
+        resultDate: form.result_date,
+        examinationType: form.examination_type,
+        xrayNo: form.xray_no,
+        findings: form.findings,
+        impression: form.impression,
+        isNormal: form.is_normal,
+      }
+      // If editing an existing visit, update it; otherwise create new
+      if (selectedVisitId) {
+        return apiClient.xrayReports.update(selectedPatient!.id, selectedVisitId, payload)
+      }
+      return apiClient.xrayReports.create(selectedPatient!.id, payload)
+    },
+    onSuccess: (saved: any) => {
+      qc.invalidateQueries({ queryKey: ['xray-reports', selectedPatient?.id] })
       toast({ title: 'X-Ray report saved', variant: 'success' })
       setIsDirty(false)
+      // After creating a new visit, select it so subsequent saves update it
+      if (!selectedVisitId && saved?.id) setSelectedVisitId(saved.id)
     },
   })
 
@@ -84,7 +139,6 @@ export default function XRayReport() {
   }
 
   const handleSave = useCallback(async () => {
-    // Validate required fields
     if (!form.findings || !form.impression) {
       const proceed = await confirm({
         title: 'Missing Required Fields',
@@ -99,15 +153,10 @@ export default function XRayReport() {
   }, [saveMutation, form, confirm])
 
   useCtrlS(handleSave)
-
-  useGlobalShortcuts({
-    onSave: handleSave,
-  })
+  useGlobalShortcuts({ onSave: handleSave })
 
   const handleAutoSave = useCallback(async () => {
-    if (isDirty) {
-      await saveMutation.mutateAsync()
-    }
+    if (isDirty) await saveMutation.mutateAsync()
   }, [isDirty, saveMutation])
 
   const applyTemplate = (template: typeof TEMPLATES[0]) => {
@@ -117,26 +166,16 @@ export default function XRayReport() {
     setActiveTemplate(template.label)
   }
 
-  const handleImageUpload = async (files: File[]) => {
-    setUploadedImages(prev => [...prev, ...files])
-    setIsDirty(true)
-    toast({ title: `${files.length} image(s) attached`, variant: 'success' })
-  }
-
-  const handleImageRemove = (fileId: string) => {
-    // In a real app, this would remove from storage
-    toast({ title: 'Image removed', variant: 'default' })
-  }
-
   if (!selectedPatient) {
     return <NoPatientSelected icon={RadioTower} label="X-Ray" />
   }
+
+  const visits = (xrayReports ?? []).map((r: any) => ({ id: r.id, resultDate: r.resultDate ?? r.result_date }))
 
   return (
     <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
       <StickyPatientHeader patient={selectedPatient} module="X-Ray" />
       <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
-        {/* Breadcrumb */}
         <PageBreadcrumb
           patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
           module="X-Ray"
@@ -151,6 +190,11 @@ export default function XRayReport() {
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
+            <VisitSelector
+              visits={visits}
+              selectedId={selectedVisitId}
+              onSelect={setSelectedVisitId}
+            />
             <PrintButton sections={PRINT_SECTIONS} />
           </div>
         </div>
@@ -170,7 +214,7 @@ export default function XRayReport() {
             <FormField label="Examination Type"><Input value={form.examination_type} onChange={e => set('examination_type', e.target.value)} placeholder="e.g. Chest PA" /></FormField>
             <FormField label="X-Ray No."><Input value={form.xray_no} onChange={e => set('xray_no', e.target.value)} placeholder="XR-000000" /></FormField>
           </div>
-          
+
           <div className="mb-4">
             <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-2">Quick Templates</p>
             <div className="flex flex-wrap gap-2">
@@ -178,8 +222,8 @@ export default function XRayReport() {
                 <Button key={t.label} variant="outline" size="sm"
                   onClick={() => applyTemplate(t)}
                   className={cn(
-                    activeTemplate === t.label 
-                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]' 
+                    activeTemplate === t.label
+                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]'
                       : '',
                     !t.isNormal && 'border-amber-300 text-amber-700 hover:bg-amber-50'
                   )}>
@@ -205,15 +249,18 @@ export default function XRayReport() {
           <NormalToggle value={form.is_normal} onChange={v => set('is_normal', v)} name="xray_normal" />
         </SectionCard>
 
-        {/* Image Attachments */}
         <SectionCard title="X-Ray Images">
           <FileUpload
             accept="image/*,.dcm"
             multiple={true}
             maxSize={20}
             maxFiles={5}
-            onUpload={handleImageUpload}
-            onRemove={handleImageRemove}
+            onUpload={async (files) => {
+              setUploadedImages(prev => [...prev, ...files])
+              setIsDirty(true)
+              toast({ title: `${files.length} image(s) attached`, variant: 'success' })
+            }}
+            onRemove={() => toast({ title: 'Image removed', variant: 'default' })}
             label="Attach X-Ray Images"
             hint="Drag and drop X-ray images here, or click to browse. Supports JPEG, PNG, and DICOM files."
           />
@@ -228,25 +275,16 @@ export default function XRayReport() {
                     <div className="w-24 h-24 rounded-lg border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center">
                       {file.type.startsWith('image/') ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-[10px] text-[hsl(var(--muted-foreground))] text-center px-1">{file.name.split('.').pop()?.toUpperCase()}</span>
                       )}
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setUploadedImages(prev => prev.filter((_, i) => i !== idx))
-                        setIsDirty(true)
-                      }}
+                      onClick={() => { setUploadedImages(prev => prev.filter((_, i) => i !== idx)); setIsDirty(true) }}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[hsl(var(--destructive))] text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    >
-                      ×
-                    </button>
+                    >×</button>
                     <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 truncate w-24">{file.name}</p>
                   </div>
                 ))}
@@ -259,13 +297,7 @@ export default function XRayReport() {
         </SectionCard>
       </div>
 
-      {/* Floating action bar */}
-      <FloatingActionBar
-        onSave={handleSave}
-        saving={saveMutation.isPending}
-      />
-      
-      {/* Confirm dialog */}
+      <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
       {ConfirmDialog}
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,10 +11,10 @@ import PastMedicalHistory from '@/components/medicalexam/PastMedicalHistory'
 import PhysicalExamination from '@/components/medicalexam/PhysicalExamination'
 import LabDiagnosticSummary from '@/components/medicalexam/LabDiagnosticSummary'
 import Evaluation from '@/components/medicalexam/Evaluation'
-import { Save, Stethoscope, CheckCheck, Eraser } from 'lucide-react'
+import { Stethoscope, CheckCheck, Eraser } from 'lucide-react'
 import { format } from 'date-fns'
-import { mockMedicalExams } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
+import { apiClient } from '@/lib/api-client'
 import { toast } from '@/lib/use-toast'
 import { useCtrlS } from '@/lib/use-ctrl-s'
 import NoPatientSelected from '@/components/NoPatientSelected'
@@ -24,6 +24,7 @@ import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { SectionProgress } from '@/components/ui/ProgressIndicator'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
+import { VisitSelector } from '@/components/ui/VisitSelector'
 
 const BMI_CLASS = ['Normal', 'Overweight', 'Underweight', 'Obese Class I', 'Obese Class II', 'Obese Class III']
 
@@ -138,36 +139,85 @@ export default function MedicalExamination() {
     past_history: {}, physical_exam: {}, lab_summary: {}, evaluation: {}
   })
   const [isDirty, setIsDirty] = useState(false)
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
 
+  const { data: existingExams } = useQuery<any[]>({
+    queryKey: ['medical-exams', selectedPatient?.id],
+    queryFn: () => apiClient.medicalExams.list(selectedPatient!.id),
+    enabled: !!selectedPatient,
+  })
+
+  // Default to most recent visit on first load
   useEffect(() => {
-    if (selectedPatient) {
-      const exam = mockMedicalExams[selectedPatient.id]
-      if (exam) {
-        setForm((f: any) => ({
-          ...f,
-          height: String(exam.height ?? ''),
-          weight: String(exam.weight ?? ''),
-          bmi: String(exam.bmi ?? ''),
-          bmi_classification: exam.bmi_classification ?? '',
-          sa_no: exam.sa_no ?? '',
-          result_date: exam.result_date ?? f.result_date,
-          past_history: exam.past_medical_history ?? {},
-          physical_exam: exam.physical_examination ?? {},
-          evaluation: { evaluation: exam.evaluation, remarks: exam.remarks, recommendations: exam.recommendations, for_clearance: exam.for_clearance },
-        }))
-        setIsDirty(false)
-      }
+    if (existingExams && existingExams.length > 0 && selectedVisitId === null) {
+      const latest = existingExams.reduce((a: any, b: any) =>
+        (b.resultDate ?? '') > (a.resultDate ?? '') ? b : a
+      )
+      setSelectedVisitId(latest.id)
     }
-  }, [selectedPatient])
+  }, [existingExams])
+
+  // Load form data when selected visit changes
+  useEffect(() => {
+    if (selectedVisitId === null) {
+      setForm({
+        result_date: format(new Date(), 'yyyy-MM-dd'),
+        use_current_date: true,
+        height: '', weight: '', bmi: '', bmi_classification: '',
+        sa_no: '',
+        past_history: {}, physical_exam: {}, lab_summary: {}, evaluation: {}
+      })
+      setIsDirty(false)
+      return
+    }
+    const exam = existingExams?.find((e: any) => e.id === selectedVisitId)
+    if (exam) {
+      setForm({
+        result_date: exam.resultDate ?? exam.result_date ?? format(new Date(), 'yyyy-MM-dd'),
+        use_current_date: false,
+        height: String(exam.height ?? ''),
+        weight: String(exam.weight ?? ''),
+        bmi: String(exam.bmi ?? ''),
+        bmi_classification: exam.bmiClassification ?? exam.bmi_classification ?? '',
+        sa_no: exam.saNo ?? exam.sa_no ?? '',
+        past_history: exam.pastMedicalHistory ?? exam.past_medical_history ?? {},
+        physical_exam: exam.physicalExamination ?? exam.physical_examination ?? {},
+        lab_summary: exam.labDiagnosticSummary ?? exam.lab_summary ?? {},
+        evaluation: exam.evaluation ?? {},
+      })
+      setIsDirty(false)
+    }
+  }, [selectedVisitId, existingExams])
+
+  // Reset when patient changes
+  useEffect(() => {
+    setSelectedVisitId(null)
+  }, [selectedPatient?.id])
 
   const saveMutation = useMutation({
-    mutationFn: async () => form,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['medical-exams'] })
+    mutationFn: async () => {
+      const payload = {
+        resultDate: form.result_date,
+        height: form.height ? parseFloat(form.height) : null,
+        weight: form.weight ? parseFloat(form.weight) : null,
+        saNo: form.sa_no,
+        pastMedicalHistory: form.past_history,
+        physicalExamination: form.physical_exam,
+        labDiagnosticSummary: form.lab_summary,
+        evaluation: form.evaluation,
+      }
+      if (selectedVisitId) {
+        return apiClient.medicalExams.update(selectedPatient!.id, selectedVisitId, payload)
+      }
+      return apiClient.medicalExams.create(selectedPatient!.id, payload)
+    },
+    onSuccess: (saved: any) => {
+      qc.invalidateQueries({ queryKey: ['medical-exams', selectedPatient?.id] })
       toast({ title: 'Medical examination saved', variant: 'success' })
       setIsDirty(false)
+      if (!selectedVisitId && saved?.id) setSelectedVisitId(saved.id)
     },
   })
 
@@ -248,6 +298,11 @@ export default function MedicalExamination() {
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
+            <VisitSelector
+              visits={(existingExams ?? []).map((e: any) => ({ id: e.id, resultDate: e.resultDate ?? e.result_date }))}
+              selectedId={selectedVisitId}
+              onSelect={setSelectedVisitId}
+            />
             <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden">
               <Button variant="ghost" size="sm" onClick={fillAllNormal}
                 className="rounded-none border-r border-[hsl(var(--border))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] hover:text-[hsl(var(--success))]">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import UrinalysisTab from '@/components/laboratory/UrinalysisTab'
 import SerologyTab from '@/components/laboratory/SerologyTab'
@@ -13,8 +13,8 @@ import BloodTypingTab from '@/components/laboratory/BloodTypingTab'
 import { Button } from '@/components/ui/button'
 import { Save, FlaskConical, CheckCheck, Copy, ChevronLeft, ChevronRight, Eraser } from 'lucide-react'
 import { format } from 'date-fns'
-import { mockLabData } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
+import { apiClient } from '@/lib/api-client'
 import { toast } from '@/lib/use-toast'
 import { useCtrlS } from '@/lib/use-ctrl-s'
 import NoPatientSelected from '@/components/NoPatientSelected'
@@ -26,6 +26,17 @@ import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { VisitSelector } from '@/components/ui/VisitSelector'
+
+const TAB_TO_REPORT_TYPE: Record<string, string> = {
+  Urinalysis: 'urinalysis',
+  Serology: 'serology',
+  Hematology: 'hematology',
+  HbA1c: 'hba1c',
+  Fecalysis: 'fecalysis',
+  Chem10: 'chem10',
+  BloodTyping: 'blood-typing',
+}
 
 const TABS = [
   { id: 'Urinalysis', label: 'Urinalysis', shortcut: '1' },
@@ -55,26 +66,97 @@ export default function LaboratoryReport() {
   const [activeTab, setActiveTab] = useState('Urinalysis')
   const [tabData, setTabData] = useState<any>({})
   const [isDirty, setIsDirty] = useState(false)
+  const [selectedVisitDate, setSelectedVisitDate] = useState<string | null>(null) // null = new visit
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
   const { confirm, ConfirmDialog } = useConfirm()
 
-  const saveMutation = useMutation({
-    mutationFn: async () => tabData[activeTab],
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['lab-reports', selectedPatient?.id] })
-      toast({ title: `${activeTab} saved`, variant: 'success' })
-      setIsDirty(false)
-    },
+  const { data: labReports } = useQuery<any[]>({
+    queryKey: ['lab-reports', selectedPatient?.id],
+    queryFn: () => apiClient.labReports.list(selectedPatient!.id),
+    enabled: !!selectedPatient,
   })
+
+  // Reset when patient changes
+  useEffect(() => {
+    setSelectedVisitDate(null)
+    setTabData({})
+  }, [selectedPatient?.id])
+
+  // Default to most recent visit date on first load
+  useEffect(() => {
+    if (labReports && labReports.length > 0 && selectedVisitDate === null) {
+      const dates = [...new Set(labReports.map((r: any) => r.resultDate ?? r.result_date))].sort().reverse()
+      setSelectedVisitDate(dates[0] as string)
+    }
+  }, [labReports])
 
   const setData = (tab: string, val: any) => {
     setTabData((prev: any) => ({ ...prev, [tab]: val }))
     setIsDirty(true)
   }
-  
-  const patientMockData = selectedPatient ? (mockLabData[selectedPatient.id] ?? {}) : {}
-  const current = tabData[activeTab] ?? patientMockData[activeTab] ?? { result_date: today }
+
+  const upsertTab = async (tabId: string, payload: any) => {
+    // If editing an existing visit date, update the matching report; otherwise create new
+    const existing = selectedVisitDate
+      ? labReports?.find((r: any) => r.reportType === TAB_TO_REPORT_TYPE[tabId] && (r.resultDate ?? r.result_date) === selectedVisitDate)
+      : null
+    if (existing) {
+      return apiClient.labReports.update(selectedPatient!.id, existing.id, payload)
+    }
+    return apiClient.labReports.create(selectedPatient!.id, payload)
+  }
+
+  const buildPayload = (tabId: string, tabPayload: any) => {
+    const { result_date, is_normal, remark, ...rest } = tabPayload
+    return {
+      reportType: TAB_TO_REPORT_TYPE[tabId],
+      resultDate: result_date ?? today,
+      isNormal: is_normal ?? null,
+      remark: remark ?? '',
+      data: rest,
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const tabPayload = tabData[activeTab] ?? {}
+      return upsertTab(activeTab, buildPayload(activeTab, tabPayload))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lab-reports', selectedPatient?.id] })
+      toast({ title: `${activeTab} saved`, variant: 'success' })
+      setTabData((prev: any) => { const next = { ...prev }; delete next[activeTab]; return next })
+      setIsDirty(false)
+    },
+  })
+
+  const saveAllMutation = useMutation({
+    mutationFn: async (dataToSave: Record<string, any>) => {
+      const entries = Object.entries(dataToSave).filter(([tabId]) => TAB_TO_REPORT_TYPE[tabId])
+      await Promise.all(entries.map(([tabId, tabPayload]) =>
+        upsertTab(tabId, buildPayload(tabId, tabPayload))
+      ))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lab-reports', selectedPatient?.id] })
+      toast({ title: 'All tabs saved', variant: 'success' })
+      setIsDirty(false)
+    },
+  })
+
+  const patientApiData = labReports
+    ? Object.fromEntries(
+        (selectedVisitDate
+          ? labReports.filter((r: any) => (r.resultDate ?? r.result_date) === selectedVisitDate)
+          : labReports
+        ).map((r: any) => {
+          const tabKey = Object.entries(TAB_TO_REPORT_TYPE).find(([, v]) => v === r.reportType)?.[0] ?? r.reportType
+          return [tabKey, { ...r.data, result_date: r.resultDate, is_normal: r.isNormal, remark: r.remark }]
+        })
+      )
+    : {}
+  const current = tabData[activeTab] ?? patientApiData[activeTab] ?? { result_date: today }
 
   const handleSave = useCallback(() => {
     saveMutation.mutate()
@@ -104,20 +186,19 @@ export default function LaboratoryReport() {
 
   // Check if tab has data
   function tabHasData(tabId: string) {
-    const d = tabData[tabId] ?? patientMockData[tabId]
+    const d = tabData[tabId] ?? patientApiData[tabId]
     return !!d && Object.keys(d).length > 1
   }
 
-  // Check if tab is complete (has is_normal set)
   function tabIsComplete(tabId: string) {
-    const d = tabData[tabId] ?? patientMockData[tabId]
+    const d = tabData[tabId] ?? patientApiData[tabId]
     return d?.is_normal !== undefined && d?.is_normal !== null
   }
 
   function fillAllNormal() {
     setTabData(ALL_NORMAL_VALUES)
     setIsDirty(true)
-    toast({ title: 'All tabs filled with normal values', variant: 'success' })
+    saveAllMutation.mutate(ALL_NORMAL_VALUES)
   }
 
   function clearAllFields() {
@@ -137,8 +218,8 @@ export default function LaboratoryReport() {
   }
 
   function copyFromPrevious() {
-    if (patientMockData[activeTab]) {
-      setData(activeTab, { ...patientMockData[activeTab], result_date: today })
+    if (patientApiData[activeTab]) {
+      setData(activeTab, { ...patientApiData[activeTab], result_date: today })
       toast({ title: 'Copied from previous visit', variant: 'success' })
     } else {
       toast({ title: 'No previous data found', variant: 'default' })
@@ -147,9 +228,14 @@ export default function LaboratoryReport() {
 
   const handleAutoSave = useCallback(async () => {
     if (isDirty) {
-      await saveMutation.mutateAsync()
+      const dirtyTabs = Object.keys(tabData)
+      if (dirtyTabs.length > 1) {
+        await saveAllMutation.mutateAsync(tabData)
+      } else {
+        await saveMutation.mutateAsync()
+      }
     }
-  }, [isDirty, saveMutation])
+  }, [isDirty, tabData, saveMutation, saveAllMutation])
 
   const goToNextTab = () => {
     const currentIndex = TABS.findIndex(t => t.id === activeTab)
@@ -198,6 +284,23 @@ export default function LaboratoryReport() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Alt+1-7 tabs</span>
+            {labReports && labReports.length > 0 && (() => {
+              const dates = [...new Set(labReports.map((r: any) => r.resultDate ?? r.result_date))]
+                .filter(Boolean)
+                .sort()
+                .reverse()
+              const visits = dates.map((d: any, i: number) => ({ id: d, resultDate: d }))
+              return (
+                <VisitSelector
+                  visits={visits}
+                  selectedId={selectedVisitDate}
+                  onSelect={(id) => {
+                    setSelectedVisitDate(id)
+                    setTabData({})
+                  }}
+                />
+              )
+            })()}
             <Button variant="outline" size="sm" onClick={copyFromPrevious} title={`Copy ${activeTab} from previous visit`}>
               <Copy className="w-4 h-4 mr-1.5" /> <span className="hidden sm:inline">Copy Prev</span> {activeTab}
             </Button>
@@ -232,6 +335,7 @@ export default function LaboratoryReport() {
               {TABS.map((t, index) => {
                 const hasData = tabHasData(t.id)
                 const isComplete = tabIsComplete(t.id)
+                const isUnsaved = !!tabData[t.id]
                 return (
                   <button key={t.id} onClick={() => setActiveTab(t.id)}
                     className={cn(
@@ -244,7 +348,7 @@ export default function LaboratoryReport() {
                       {index + 1}
                     </span>
                     {t.label}
-                    <TabCompletionBadge completed={isComplete} hasData={hasData} />
+                    <TabCompletionBadge completed={isComplete} hasData={hasData} unsaved={isUnsaved} />
                   </button>
                 )
               })}
@@ -276,10 +380,11 @@ export default function LaboratoryReport() {
       {/* Floating action bar */}
       <FloatingActionBar
         onSave={handleSave}
-        saving={saveMutation.isPending}
+        saving={saveMutation.isPending || saveAllMutation.isPending}
         hasNext={hasNextTab}
         nextLabel={hasNextTab ? TABS[currentTabIndex + 1].label : undefined}
         onNext={goToNextTab}
+        onSaveAll={Object.keys(tabData).length > 1 ? () => saveAllMutation.mutate(tabData) : undefined}
       />
       {ConfirmDialog}
     </div>

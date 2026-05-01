@@ -114,9 +114,19 @@ export function SectionProgress({ sections, className }: SectionProgressProps) {
 interface TabCompletionBadgeProps {
   completed: boolean
   hasData?: boolean
+  unsaved?: boolean
 }
 
-export function TabCompletionBadge({ completed, hasData }: TabCompletionBadgeProps) {
+export function TabCompletionBadge({ completed, hasData, unsaved }: TabCompletionBadgeProps) {
+  if (unsaved) {
+    return (
+      <span
+        className="ml-1.5 inline-block w-2 h-2 rounded-full bg-orange-400 animate-pulse"
+        title="Unsaved changes"
+      />
+    )
+  }
+
   if (completed) {
     return (
       <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--success))]">

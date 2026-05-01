@@ -27,7 +27,7 @@ export function useKeyboardShortcuts({ shortcuts, enabled = true }: UseKeyboardS
                    target.isContentEditable
 
     for (const shortcut of shortcuts) {
-      const keyMatch = e.key.toLowerCase() === shortcut.key.toLowerCase()
+      const keyMatch = e.key?.toLowerCase() === shortcut.key.toLowerCase()
       const ctrlMatch = shortcut.ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey)
       const altMatch = shortcut.alt ? e.altKey : !e.altKey
       const shiftMatch = shortcut.shift ? e.shiftKey : !e.shiftKey

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { mockPatients } from '@/lib/mockData'
+import { apiClient } from '@/lib/api-client'
 import { usePatient } from '@/lib/patient-context'
 import { useSearch } from '@/lib/search-context'
 import { createPortal } from 'react-dom'
@@ -11,6 +11,23 @@ import { createPortal } from 'react-dom'
 function calcAge(birthdate?: string) {
   if (!birthdate) return '—'
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+}
+
+function normalizePatient(p: any) {
+  return {
+    id: p.id,
+    last_name: p.lastName ?? p.last_name ?? '',
+    first_name: p.firstName ?? p.first_name ?? '',
+    middle_name: p.middleName ?? p.middle_name ?? '',
+    employer: p.employer ?? '',
+    birthdate: p.birthdate ?? '',
+    gender: p.gender ?? '',
+    contact_number: p.contactNumber ?? p.contact_number ?? '',
+    address: p.address ?? '',
+    marital_status: p.maritalStatus ?? p.marital_status ?? '',
+    nationality: p.nationality ?? '',
+    registration_date: p.registrationDate ?? p.registration_date ?? '',
+  }
 }
 
 function SearchOverlay({ onClose }: { onClose: () => void }) {
@@ -22,7 +39,10 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
 
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ['patients'],
-    queryFn: async () => mockPatients,
+    queryFn: async () => {
+      const res = await apiClient.patients.list({ size: 100 })
+      return (res.content ?? []).map(normalizePatient)
+    },
   })
 
   const results = query.trim()
@@ -108,7 +128,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                   className={`w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors ${
                     i === activeIndex
                       ? 'bg-[hsl(var(--primary))] text-white'
-                      : 'hover:bg-[hsl(var(--muted)/0.5)]'
+                      : 'hover:bg-[hsl(var(--muted)_/_0.5)]'
                   }`}
                 >
                   <div className="flex-1 min-w-0">
@@ -135,7 +155,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] text-[10px] text-[hsl(var(--muted-foreground))]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)_/_0.3)] text-[10px] text-[hsl(var(--muted-foreground))]">
           <span>↑↓ navigate · enter select</span>
           <span>{results.length} result{results.length !== 1 ? 's' : ''}</span>
         </div>
@@ -165,7 +185,7 @@ export default function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-2 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)/0.8)] rounded-lg px-3 py-2 transition-colors cursor-pointer"
+        className="w-full flex items-center gap-2 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)_/_0.8)] rounded-lg px-3 py-2 transition-colors cursor-pointer"
       >
         <Search className="w-4 h-4 text-[hsl(var(--sidebar-foreground)/0.5)] shrink-0" />
         <span className="flex-1 text-sm text-left text-[hsl(var(--sidebar-foreground)/0.4)]">Search…</span>

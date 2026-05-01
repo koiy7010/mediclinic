@@ -40,6 +40,17 @@ public class QueueController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
     
+    @PutMapping("/{id}")
+    @Operation(summary = "Update queue entry", description = "Updates purpose and employer of a queue entry")
+    @ApiResponse(responseCode = "200", description = "Queue entry updated successfully")
+    @ApiResponse(responseCode = "404", description = "Queue entry not found")
+    public ResponseEntity<QueueEntryResponse> updateQueueEntry(
+            @PathVariable String id,
+            @RequestBody QueueEntryRequest request) {
+        QueueEntryResponse response = queueService.updateQueueEntry(id, request);
+        return ResponseEntity.ok(response);
+    }
+
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update queue status", description = "Updates the status of a queue entry")
     @ApiResponse(responseCode = "200", description = "Queue status updated successfully")

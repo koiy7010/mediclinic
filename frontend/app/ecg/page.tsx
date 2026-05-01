@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useCallback } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { SectionCard, FormField } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Zap } from 'lucide-react'
 import { format } from 'date-fns'
 import { usePatient } from '@/lib/patient-context'
+import { apiClient } from '@/lib/api-client'
 import { NormalToggle } from '@/components/ui/NormalToggle'
 import { toast } from '@/lib/use-toast'
 import { useCtrlS } from '@/lib/use-ctrl-s'
@@ -18,8 +19,9 @@ import { AutoSaveIndicator } from '@/components/ui/AutoSaveIndicator'
 import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
-import { cn } from '@/lib/utils'
 import { FileUpload } from '@/components/ui/FileUpload'
+import { VisitSelector } from '@/components/ui/VisitSelector'
+import { cn } from '@/lib/utils'
 
 const TEMPLATES = [
   { label: 'Normal Sinus Rhythm', findings: 'Rate: 72 bpm. Regular rhythm. Normal P wave morphology. PR interval: 0.16s. QRS duration: 0.08s. Normal axis. No ST segment changes. No T wave abnormalities.', impression: 'Normal sinus rhythm. No acute changes.', isNormal: true },
@@ -34,34 +36,97 @@ const PRINT_SECTIONS = [
   { id: 'findings', label: 'Findings & Impression', defaultChecked: true },
 ]
 
+const EMPTY_FORM = {
+  report_title: 'Electrocardiogram (ECG)',
+  result_date: format(new Date(), 'yyyy-MM-dd'),
+  examination_type: 'ECG',
+  ecg_no: '',
+  findings: '',
+  impression: '',
+  is_normal: null as boolean | null,
+}
+
 function calcAge(birthdate: string) {
   if (!birthdate) return '—'
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
 }
 
 export default function EcgReport() {
-  const [form, setForm] = useState({ 
-    report_title: 'Electrocardiogram (ECG)', 
-    result_date: format(new Date(), 'yyyy-MM-dd'), 
-    examination_type: 'ECG', 
-    ecg_no: '', 
-    findings: '', 
-    impression: '', 
-    is_normal: null as boolean | null 
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [uploadedImages, setUploadedImages] = useState<File[]>([])
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
 
-  const saveMutation = useMutation({ 
-    mutationFn: async () => form, 
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['radiology'] })
-      toast({ title: 'ECG report saved', variant: 'success' })
+  const { data: ecgReports } = useQuery<any[]>({
+    queryKey: ['ecg-reports', selectedPatient?.id],
+    queryFn: () => apiClient.ecgReports.list(selectedPatient!.id),
+    enabled: !!selectedPatient,
+  })
+
+  // Default to most recent visit on first load
+  useEffect(() => {
+    if (ecgReports && ecgReports.length > 0 && selectedVisitId === null) {
+      const latest = ecgReports.reduce((a: any, b: any) =>
+        (b.resultDate ?? '') > (a.resultDate ?? '') ? b : a
+      )
+      setSelectedVisitId(latest.id)
+    }
+  }, [ecgReports])
+
+  // Load form data when selected visit changes
+  useEffect(() => {
+    if (selectedVisitId === null) {
+      setForm({ ...EMPTY_FORM, result_date: format(new Date(), 'yyyy-MM-dd') })
+      setActiveTemplate(null)
+      setIsDirty(false)
+      return
+    }
+    const r = ecgReports?.find((x: any) => x.id === selectedVisitId)
+    if (r) {
+      setForm({
+        report_title: r.reportTitle ?? r.report_title ?? 'Electrocardiogram (ECG)',
+        result_date: r.resultDate ?? r.result_date ?? format(new Date(), 'yyyy-MM-dd'),
+        examination_type: r.examinationType ?? r.examination_type ?? 'ECG',
+        ecg_no: r.ecgNo ?? r.ecg_no ?? '',
+        findings: r.findings ?? '',
+        impression: r.impression ?? '',
+        is_normal: r.isNormal ?? r.is_normal ?? null,
+      })
+      setActiveTemplate(null)
       setIsDirty(false)
     }
+  }, [selectedVisitId, ecgReports])
+
+  // Reset when patient changes
+  useEffect(() => {
+    setSelectedVisitId(null)
+  }, [selectedPatient?.id])
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        reportTitle: form.report_title,
+        resultDate: form.result_date,
+        examinationType: form.examination_type,
+        ecgNo: form.ecg_no,
+        findings: form.findings,
+        impression: form.impression,
+        isNormal: form.is_normal,
+      }
+      if (selectedVisitId) {
+        return apiClient.ecgReports.update(selectedPatient!.id, selectedVisitId, payload)
+      }
+      return apiClient.ecgReports.create(selectedPatient!.id, payload)
+    },
+    onSuccess: (saved: any) => {
+      qc.invalidateQueries({ queryKey: ['ecg-reports', selectedPatient?.id] })
+      toast({ title: 'ECG report saved', variant: 'success' })
+      setIsDirty(false)
+      if (!selectedVisitId && saved?.id) setSelectedVisitId(saved.id)
+    },
   })
 
   const set = (k: string, v: any) => {
@@ -74,15 +139,10 @@ export default function EcgReport() {
   }, [saveMutation])
 
   useCtrlS(handleSave)
-
-  useGlobalShortcuts({
-    onSave: handleSave,
-  })
+  useGlobalShortcuts({ onSave: handleSave })
 
   const handleAutoSave = useCallback(async () => {
-    if (isDirty) {
-      await saveMutation.mutateAsync()
-    }
+    if (isDirty) await saveMutation.mutateAsync()
   }, [isDirty, saveMutation])
 
   const applyTemplate = (template: typeof TEMPLATES[0]) => {
@@ -96,11 +156,12 @@ export default function EcgReport() {
     return <NoPatientSelected icon={Zap} label="ECG" />
   }
 
+  const visits = (ecgReports ?? []).map((r: any) => ({ id: r.id, resultDate: r.resultDate ?? r.result_date }))
+
   return (
     <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
       <StickyPatientHeader patient={selectedPatient} module="ECG" />
       <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
-        {/* Breadcrumb */}
         <PageBreadcrumb
           patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
           module="ECG"
@@ -115,6 +176,7 @@ export default function EcgReport() {
             <AutoSaveIndicator isDirty={isDirty} onAutoSave={handleAutoSave} />
           </div>
           <div className="flex items-center gap-2">
+            <VisitSelector visits={visits} selectedId={selectedVisitId} onSelect={setSelectedVisitId} />
             <PrintButton sections={PRINT_SECTIONS} />
           </div>
         </div>
@@ -153,8 +215,8 @@ export default function EcgReport() {
                 <Button key={t.label} variant="outline" size="sm"
                   onClick={() => applyTemplate(t)}
                   className={cn(
-                    activeTemplate === t.label 
-                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]' 
+                    activeTemplate === t.label
+                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))]'
                       : '',
                     !t.isNormal && 'border-amber-300 text-amber-700 hover:bg-amber-50'
                   )}>
@@ -167,20 +229,19 @@ export default function EcgReport() {
 
           <FormField label="ECG Findings" required className="mb-4" id="findings">
             <textarea value={form.findings} onChange={e => set('findings', e.target.value)} rows={5}
-              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md" 
+              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Describe ECG findings…" />
           </FormField>
 
           <FormField label="Impression" required className="mb-4">
             <textarea value={form.impression} onChange={e => set('impression', e.target.value)} rows={3}
-              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md" 
+              className="w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] resize-y transition-all hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md"
               placeholder="Clinical impression…" />
           </FormField>
 
           <NormalToggle value={form.is_normal} onChange={v => set('is_normal', v)} name="ecg_normal" />
         </SectionCard>
 
-        {/* ECG Tracing Attachments */}
         <SectionCard title="ECG Tracing">
           <FileUpload
             accept="image/*,.pdf"
@@ -192,9 +253,7 @@ export default function EcgReport() {
               setIsDirty(true)
               toast({ title: `${files.length} tracing(s) attached`, variant: 'success' })
             }}
-            onRemove={() => {
-              toast({ title: 'Tracing removed', variant: 'default' })
-            }}
+            onRemove={() => toast({ title: 'Tracing removed', variant: 'default' })}
             label="Attach ECG Tracing"
             hint="Drag and drop ECG tracing images here, or click to browse. Supports JPEG, PNG, and PDF files."
           />
@@ -216,14 +275,9 @@ export default function EcgReport() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setUploadedImages(prev => prev.filter((_, i) => i !== idx))
-                        setIsDirty(true)
-                      }}
+                      onClick={() => { setUploadedImages(prev => prev.filter((_, i) => i !== idx)); setIsDirty(true) }}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[hsl(var(--destructive))] text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    >
-                      ×
-                    </button>
+                    >×</button>
                     <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1 truncate w-24">{file.name}</p>
                   </div>
                 ))}
@@ -233,11 +287,7 @@ export default function EcgReport() {
         </SectionCard>
       </div>
 
-      {/* Floating action bar */}
-      <FloatingActionBar
-        onSave={handleSave}
-        saving={saveMutation.isPending}
-      />
+      <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
     </div>
   )
 }

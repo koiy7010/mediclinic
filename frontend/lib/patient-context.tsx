@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 interface Patient {
   id: string
@@ -35,8 +35,26 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
 
+  useEffect(() => {
+    try {
+      const p = sessionStorage.getItem('selectedPatient')
+      if (p) setSelectedPatient(JSON.parse(p))
+      if (sessionStorage.getItem('panelOpen') === 'true') setPanelOpen(true)
+    } catch {}
+  }, [])
+
+  const handleSetPatient = (p: Patient | null) => {
+    setSelectedPatient(p)
+    sessionStorage.setItem('selectedPatient', JSON.stringify(p))
+  }
+
+  const handleSetPanelOpen = (open: boolean) => {
+    setPanelOpen(open)
+    sessionStorage.setItem('panelOpen', String(open))
+  }
+
   return (
-    <PatientContext.Provider value={{ selectedPatient, setSelectedPatient, panelOpen, setPanelOpen }}>
+    <PatientContext.Provider value={{ selectedPatient, setSelectedPatient: handleSetPatient, panelOpen, setPanelOpen: handleSetPanelOpen }}>
       {children}
     </PatientContext.Provider>
   )

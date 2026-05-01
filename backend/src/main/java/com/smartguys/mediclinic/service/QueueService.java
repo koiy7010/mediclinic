@@ -98,6 +98,22 @@ public class QueueService {
     }
     
     @Auditable(action = ActionType.UPDATED, module = ModuleType.INFORMATION_DESK)
+    public QueueEntryResponse updateQueueEntry(String entryId, QueueEntryRequest request) {
+        QueueEntry entry = queueEntryRepository.findById(entryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Queue entry not found with id: " + entryId));
+
+        if (request.getPurpose() != null) entry.setPurpose(request.getPurpose());
+        if (request.getEmployer() != null) entry.setEmployer(request.getEmployer());
+        entry.setUpdatedAt(LocalDateTime.now());
+
+        QueueEntry savedEntry = queueEntryRepository.save(entry);
+
+        QueueEntryResponse response = new QueueEntryResponse();
+        BeanUtils.copyProperties(savedEntry, response);
+        return response;
+    }
+
+    @Auditable(action = ActionType.UPDATED, module = ModuleType.INFORMATION_DESK)
     public int removeCompletedEntries(LocalDate date) {
         LocalDateTime startDate = date.atStartOfDay();
         LocalDateTime endDate = date.plusDays(1).atStartOfDay();

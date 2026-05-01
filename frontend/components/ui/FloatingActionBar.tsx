@@ -9,6 +9,7 @@ interface FloatingActionBarProps {
   onNext?: () => void
   onPrint?: () => void
   onUndo?: () => void
+  onSaveAll?: () => void
   saving?: boolean
   hasNext?: boolean
   nextLabel?: string
@@ -21,6 +22,7 @@ export function FloatingActionBar({
   onNext,
   onPrint,
   onUndo,
+  onSaveAll,
   saving = false,
   hasNext = false,
   nextLabel = 'Next',
@@ -58,6 +60,19 @@ export function FloatingActionBar({
           Ctrl+S
         </kbd>
       </Button>
+
+      {onSaveAll && (
+        <Button
+          variant="outline"
+          onClick={onSaveAll}
+          disabled={saving}
+          className="px-4"
+          title="Save all tabs"
+        >
+          <Save className="w-4 h-4 mr-1" />
+          Save All
+        </Button>
+      )}
 
       {hasNext && onNext && (
         <Button

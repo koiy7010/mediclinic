@@ -6,4 +6,4 @@ logging:
 spring:
   data:
     mongodb:
-      uri: mongodb://localhost:27017/mediclinic
+      uri: mongodb://192.168.0.15:27017/mediclinic?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.3.9

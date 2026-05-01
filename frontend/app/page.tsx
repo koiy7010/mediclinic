@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
-import { mockPatients, mockLabReports } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import { toast } from '@/lib/use-toast'
@@ -20,7 +19,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useRecentPatients } from '@/components/ui/RecentPatients'
 import { useSearch } from '@/lib/search-context'
 import PatientTimeline, { type TimelineEvent } from '@/components/ui/PatientTimeline'
-import { mockLabData, mockRadiologyReports, mockMedicalExams } from '@/lib/mockData'
+import { apiClient } from '@/lib/api-client'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const NATIONALITIES = ['Filipino', 'American', 'Japanese', 'Korean', 'Chinese', 'British', 'Australian', 'Canadian', 'Other']
@@ -104,12 +103,37 @@ export default function PatientProfile() {
   const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
-    if (selectedPatient) {
-      setForm({ ...emptyForm, ...selectedPatient })
-      setSelectedId(selectedPatient.id)
+    if (!selectedPatient) return
+    const p = selectedPatient
+    // If ID looks like a stale local ID (never persisted), verify it exists
+    const isLocalId = /^p\d{10,}$/.test(p.id)
+    const load = (data: any) => {
+      setForm({
+        registration_date: data.registrationDate ?? data.registration_date ?? format(new Date(), 'yyyy-MM-dd'),
+        last_name: data.lastName ?? data.last_name ?? '',
+        first_name: data.firstName ?? data.first_name ?? '',
+        middle_name: data.middleName ?? data.middle_name ?? '',
+        address: data.address ?? '',
+        contact_number: data.contactNumber ?? data.contact_number ?? '',
+        employer: data.employer ?? '',
+        birthdate: data.birthdate ?? '',
+        marital_status: data.maritalStatus ?? data.marital_status ?? '',
+        gender: data.gender ?? '',
+        nationality: data.nationality ?? '',
+      })
+      setSelectedId(p.id)
       setError('')
       setIsDirty(false)
       setIsNewMode(false)
+    }
+    if (isLocalId) {
+      apiClient.patients.getById(p.id).then(load).catch(() => {
+        setSelectedPatient(null)
+        setSelectedId(null)
+        setForm(emptyForm)
+      })
+    } else {
+      load(p)
     }
   }, [selectedPatient])
 
@@ -120,15 +144,22 @@ export default function PatientProfile() {
 
   const { data: labHistory = [] } = useQuery<any[]>({
     queryKey: ['lab-history', selectedId],
-    queryFn: async () => mockLabReports[selectedId!] ?? [],
+    queryFn: () => apiClient.labReports.list(selectedId!),
     enabled: !!selectedId,
   })
 
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => data,
+    mutationFn: (data: any) => selectedId ? apiClient.patients.update(selectedId, data) : apiClient.patients.create(data),
     onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ['patients'] })
-      if (!selectedId) setSelectedId(res.id)
+      if (!selectedId) {
+        setSelectedId(res.id)
+        qc.invalidateQueries({ queryKey: ['patients'] })
+      } else {
+        qc.setQueryData(['patients'], (old: any) => {
+          if (!old?.content) return old
+          return { ...old, content: old.content.map((p: any) => p.id === res.id ? res : p) }
+        })
+      }
       setError('')
       setIsDirty(false)
       setIsNewMode(false)
@@ -181,7 +212,20 @@ export default function PatientProfile() {
       setError('Last Name and First Name are required.')
       return
     }
-    saveMutation.mutate(form)
+    const payload = {
+      lastName: form.last_name,
+      firstName: form.first_name,
+      middleName: form.middle_name,
+      address: form.address,
+      contactNumber: form.contact_number,
+      employer: form.employer,
+      birthdate: form.birthdate || null,
+      maritalStatus: form.marital_status,
+      gender: form.gender,
+      nationality: form.nationality,
+      registrationDate: form.registration_date || null,
+    }
+    saveMutation.mutate(payload)
   }, [form, saveMutation])
 
   const set = (k: string, v: any) => {
@@ -195,8 +239,22 @@ export default function PatientProfile() {
   useGlobalShortcuts({ onSave: handleSave, onNew: handleNew, onSearch: () => setSearchOpen(true) })
 
   const handleAutoSave = useCallback(async () => {
-    if (isDirty && form.last_name && form.first_name) await saveMutation.mutateAsync(form)
-  }, [isDirty, form, saveMutation])
+    if (isDirty && form.last_name && form.first_name) {
+      await saveMutation.mutateAsync({
+        lastName: form.last_name,
+        firstName: form.first_name,
+        middleName: form.middle_name,
+        address: form.address,
+        contactNumber: form.contact_number,
+        employer: form.employer,
+        birthdate: form.birthdate || null,
+        maritalStatus: form.marital_status,
+        gender: form.gender,
+        nationality: form.nationality,
+        registrationDate: form.registration_date || null,
+      })
+    }
+  }, [isDirty, form.last_name, form.first_name, form.middle_name, form.address, form.contact_number, form.employer, form.birthdate, form.marital_status, form.gender, form.nationality, form.registration_date, saveMutation])
 
   const lastVisit = (labHistory as any[]).length > 0
     ? [...(labHistory as any[])].sort((a, b) => new Date(b.result_date).getTime() - new Date(a.result_date).getTime())[0]
@@ -220,41 +278,48 @@ export default function PatientProfile() {
     return 'complete'
   }
 
-  const buildTimelineEvents = (): TimelineEvent[] => {
+  const { data: xrayReports = [] } = useQuery<any[]>({
+    queryKey: ['xray-reports', selectedId],
+    queryFn: () => apiClient.xrayReports.list(selectedId!),
+    enabled: !!selectedId,
+  })
+
+  const { data: medicalExams = [] } = useQuery<any[]>({
+    queryKey: ['medical-exams', selectedId],
+    queryFn: () => apiClient.medicalExams.list(selectedId!),
+    enabled: !!selectedId,
+  })
+
+  const timelineEvents: TimelineEvent[] = (() => {
     if (!selectedId) return []
     const events: TimelineEvent[] = []
-    const patientLabData = mockLabData[selectedId] || {}
-    Object.entries(patientLabData).forEach(([testType, data]: [string, any]) => {
-      if (data.result_date) {
+    ;(labHistory as any[]).forEach((r: any) => {
+      if (r.result_date) {
         events.push({
-          id: `lab_${testType}_${data.result_date}`, type: 'lab', subtype: testType,
-          date: data.result_date, title: `Laboratory - ${testType}`,
-          summary: data.remark || (data.is_normal ? 'Results within normal range' : 'Abnormal findings'),
-          isNormal: data.is_normal, data,
+          id: r.id, type: 'lab', subtype: r.report_type,
+          date: r.result_date, title: `Laboratory - ${r.report_type}`,
+          summary: r.remarks || (r.is_normal ? 'Results within normal range' : 'Abnormal findings'),
+          isNormal: r.is_normal, data: r,
         })
       }
     })
-    const radiologyReports = mockRadiologyReports[selectedId] || []
-    radiologyReports.forEach((report: any) => {
+    ;(xrayReports as any[]).forEach((report: any) => {
       events.push({
         id: report.id, type: 'xray', subtype: report.examination_type,
         date: report.result_date, title: report.report_title,
         summary: report.impression, isNormal: report.is_normal, data: report,
       })
     })
-    const medicalExam = mockMedicalExams[selectedId]
-    if (medicalExam) {
+    ;(medicalExams as any[]).forEach((exam: any) => {
       events.push({
-        id: `exam_${medicalExam.result_date}`, type: 'medical-exam',
-        date: medicalExam.result_date, title: 'Medical Examination',
-        summary: medicalExam.remarks || `Evaluation: ${medicalExam.evaluation}`,
-        isNormal: medicalExam.evaluation === 'A', data: medicalExam,
+        id: exam.id ?? `exam_${exam.result_date}`, type: 'medical-exam',
+        date: exam.result_date, title: 'Medical Examination',
+        summary: exam.remarks || `Evaluation: ${exam.evaluation}`,
+        isNormal: exam.evaluation === 'A', data: exam,
       })
-    }
+    })
     return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }
-
-  const timelineEvents = buildTimelineEvents()
+  })()
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] pb-24">

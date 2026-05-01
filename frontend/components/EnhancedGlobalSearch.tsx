@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, X, Filter, Calendar, Building2, Hash } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { mockPatients } from '@/lib/mockData'
+import { apiClient } from '@/lib/api-client'
 import { usePatient } from '@/lib/patient-context'
 import { useSearch } from '@/lib/search-context'
 import { useRecentPatients } from '@/components/ui/RecentPatients'
@@ -36,14 +36,70 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
 
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ['patients'],
-    queryFn: async () => mockPatients,
+    queryFn: async () => {
+      const res = await apiClient.patients.list({ size: 100 })
+      return (res.content ?? []).map((p: any) => ({
+        id: p.id,
+        last_name: p.lastName ?? p.last_name ?? '',
+        first_name: p.firstName ?? p.first_name ?? '',
+        middle_name: p.middleName ?? p.middle_name ?? '',
+        employer: p.employer ?? '',
+        birthdate: p.birthdate ?? '',
+        gender: p.gender ?? '',
+        contact_number: p.contactNumber ?? p.contact_number ?? '',
+        address: p.address ?? '',
+        marital_status: p.maritalStatus ?? p.marital_status ?? '',
+        nationality: p.nationality ?? '',
+        registration_date: p.registrationDate ?? p.registration_date ?? '',
+      }))
+    },
   })
 
+  const { data: queueData = [] } = useQuery<any[]>({
+    queryKey: ['queue'],
+    queryFn: async () => {
+      const res = await apiClient.queue.list()
+      return (res.content ?? []).map((q: any) => ({
+        id: q.patientId ?? q.patient_id ?? q.id,
+        patient_name: q.patientName ?? q.patient_name ?? '',
+        employer: q.employer ?? '',
+        status: (q.status ?? 'waiting').toLowerCase().replace('_', '-'),
+        queue_number: q.queueNumber ?? q.queue_number ?? 0,
+        created_at: q.createdAt ?? q.created_at ?? '',
+      }))
+    },
+    refetchInterval: 15000,
+  })
+
+  // Build merged list: real patients + queue-only entries (not already in patients)
+  const patientIds = new Set((patients as any[]).map(p => p.id))
+  const queueOnlyPatients = (queueData as any[])
+    .filter(q => (q.status === 'waiting' || q.status === 'in-progress') && !patientIds.has(q.id))
+    .map(q => {
+      const [last_name = '', first_name = ''] = (q.patient_name as string).split(', ')
+      return {
+        id: q.id,
+        last_name,
+        first_name,
+        employer: q.employer,
+        birthdate: '',
+        gender: '',
+        contact_number: '',
+        registration_date: q.created_at,
+        _inQueue: true,
+      }
+    })
+  const allPatients = [...(patients as any[]), ...queueOnlyPatients]
+
+  const queuePatientIds = new Set(
+    (queueData as any[]).filter(q => q.status === 'waiting' || q.status === 'in-progress').map(q => q.id)
+  )
+
   // Get unique employers for filter dropdown
-  const employers = [...new Set((patients as any[]).map(p => p.employer).filter(Boolean))].sort()
+  const employers = [...new Set(allPatients.map(p => p.employer).filter(Boolean))].sort()
 
   const results = (() => {
-    let filtered = patients as any[]
+    let filtered = allPatients
     const q = query.toLowerCase().trim()
 
     // Apply search mode
@@ -85,9 +141,13 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     }
 
     // Sort and limit
-    if (!q) {
-      filtered = [...filtered]
+    if (!q && !filters.employer && !filters.dateFrom && !filters.dateTo) {
+      // Prioritize patients currently in queue (waiting/in-progress)
+      const inQueue = filtered.filter(p => queuePatientIds.has(p.id))
+      const notInQueue = filtered
+        .filter(p => !queuePatientIds.has(p.id))
         .sort((a, b) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime())
+      filtered = [...inQueue, ...notInQueue]
     }
 
     return filtered.slice(0, 10)
@@ -170,7 +230,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
 
         {/* Filters panel */}
         {showFilters && (
-          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] space-y-3">
+          <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)_/_0.3)] space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">Filters</p>
               {hasActiveFilters && (
@@ -248,7 +308,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             <>
               {!query.trim() && !hasActiveFilters && (
                 <p className="text-[10px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide px-4 pt-2">
-                  Recent
+                  In Queue & Recent
                 </p>
               )}
               {results.map((p: any, i: number) => (
@@ -259,7 +319,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                   className={`w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors ${
                     i === activeIndex
                       ? 'bg-[hsl(var(--primary))] text-white'
-                      : 'hover:bg-[hsl(var(--muted)/0.5)]'
+                      : 'hover:bg-[hsl(var(--muted)_/_0.5)]'
                   }`}
                 >
                   <div className="flex-1 min-w-0">
@@ -271,11 +331,20 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                      i === activeIndex ? 'bg-white/20 text-white/80' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'
-                    }`}>
-                      {p.id}
-                    </span>
+                    <div className="flex items-center gap-1 justify-end">
+                      {queuePatientIds.has(p.id) && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          i === activeIndex ? 'bg-white/30 text-white' : 'bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]'
+                        }`}>
+                          In Queue
+                        </span>
+                      )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        i === activeIndex ? 'bg-white/20 text-white/80' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'
+                      }`}>
+                        {p.id}
+                      </span>
+                    </div>
                     <p className={`text-[10px] mt-0.5 ${i === activeIndex ? 'text-white/60' : 'text-[hsl(var(--muted-foreground))]'}`}>
                       {p.registration_date}
                     </p>
@@ -291,7 +360,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.3)] text-[10px] text-[hsl(var(--muted-foreground))]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)_/_0.3)] text-[10px] text-[hsl(var(--muted-foreground))]">
           <span>↑↓ navigate · enter select · tab filters</span>
           <span>{results.length} result{results.length !== 1 ? 's' : ''}</span>
         </div>
@@ -321,7 +390,7 @@ export default function EnhancedGlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-2 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)/0.8)] rounded-lg px-3 py-2 transition-colors cursor-pointer"
+        className="w-full flex items-center gap-2 bg-[hsl(var(--sidebar-accent))] hover:bg-[hsl(var(--sidebar-accent)_/_0.8)] rounded-lg px-3 py-2 transition-colors cursor-pointer"
       >
         <Search className="w-4 h-4 text-[hsl(var(--sidebar-foreground)/0.5)] shrink-0" />
         <span className="flex-1 text-sm text-left text-[hsl(var(--sidebar-foreground)/0.4)]">Search…</span>

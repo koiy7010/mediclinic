@@ -169,6 +169,12 @@ class ApiClient {
         body: JSON.stringify(data),
       }),
 
+    update: (id: string, data: any) =>
+      this.request<any>(`/queue/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
     updateStatus: (id: string, data: any) =>
       this.request<any>(`/queue/${id}/status`, {
         method: 'PATCH',

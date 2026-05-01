@@ -9,11 +9,11 @@ import { SectionCard, FormField } from '@/components/ui/FormField'
 import {
   ConciergeBell, Search, Plus, UserPlus, X, Clock, FlaskConical,
   Stethoscope, RadioTower, ScanLine, Zap, ArrowRight, Check,
-  RotateCcw, Users, AlertCircle, Printer, ChevronDown
+  RotateCcw, Users, AlertCircle, Printer, ChevronDown, PencilLine
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { mockPatients } from '@/lib/mockData'
 import { usePatient } from '@/lib/patient-context'
+import { apiClient } from '@/lib/api-client'
 import { toast } from '@/lib/use-toast'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -69,14 +69,6 @@ function calcAge(birthdate: string) {
   return Math.floor((Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
 }
 
-/* ── Mock queue data ── */
-const INITIAL_QUEUE: QueueEntry[] = [
-  { id: 'q1', patient_id: 'p1', patient_name: 'Santos, Maria', employer: 'BDO Unibank', department: 'laboratory', purpose: 'Annual PE', status: 'in-progress', queue_number: 1, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:15:00' },
-  { id: 'q2', patient_id: 'p2', patient_name: 'Reyes, Juan', employer: 'SM Investments', department: 'medical-exam', purpose: 'Pre-Employment', status: 'waiting', queue_number: 2, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:30:00' },
-  { id: 'q3', patient_id: 'p3', patient_name: 'Garcia, Ana', employer: 'Jollibee Foods Corp.', department: 'xray', purpose: 'Annual PE', status: 'waiting', queue_number: 3, created_at: format(new Date(), 'yyyy-MM-dd') + 'T08:45:00' },
-  { id: 'q4', patient_id: 'p4', patient_name: 'Mendoza, Carlos', employer: 'PLDT Inc.', department: 'laboratory', purpose: 'Follow-up', status: 'done', queue_number: 4, created_at: format(new Date(), 'yyyy-MM-dd') + 'T07:30:00' },
-]
-
 /* ── Department Badge ── */
 function DeptBadge({ department }: { department: string }) {
   const dept = DEPARTMENTS.find(d => d.id === department)
@@ -110,8 +102,8 @@ function QueueStatusBadge({ status }: { status: QueueEntry['status'] }) {
 export default function InformationDesk() {
   const [activeView, setActiveView] = useState<'queue' | 'register'>('queue')
   const [showModal, setShowModal] = useState(false)
-  const [showStats, setShowStats] = useState(true)
-  const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE)
+  const [showStats, setShowStats] = useState(false)
+  const [localQueue, setLocalQueue] = useState<QueueEntry[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [regForm, setRegForm] = useState(emptyRegistration)
   const [regError, setRegError] = useState('')
@@ -120,6 +112,8 @@ export default function InformationDesk() {
   const [patientSearchQuery, setPatientSearchQuery] = useState('')
   const [showPatientSearch, setShowPatientSearch] = useState(false)
   const [selectedExistingPatient, setSelectedExistingPatient] = useState<any>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<{ purpose: string; employer: string; status: QueueEntry['status'] }>({ purpose: '', employer: '', status: 'waiting' })
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { confirm, ConfirmDialog } = useConfirm()
   const { setSelectedPatient } = usePatient()
@@ -131,9 +125,45 @@ export default function InformationDesk() {
     }
   }, [showModal])
 
+  const { data: queueData } = useQuery({
+    queryKey: ['queue'],
+    queryFn: async () => {
+      const res = await apiClient.queue.list()
+      return (res.content ?? []).map((q: any) => ({
+        id: q.id,
+        patient_id: q.patientId ?? q.patient_id ?? '',
+        patient_name: q.patientName ?? q.patient_name ?? '',
+        employer: q.employer ?? '',
+        department: q.department ?? '',
+        purpose: q.purpose ?? '',
+        status: (q.status ?? 'waiting').toLowerCase().replace('_', '-') as QueueEntry['status'],
+        queue_number: q.queueNumber ?? q.queue_number ?? 0,
+        created_at: q.createdAt ?? q.created_at ?? '',
+      })) as QueueEntry[]
+    },
+    refetchInterval: 15000,
+  })
+
+  const queue: QueueEntry[] = [
+    ...(queueData ?? []).filter(q =>
+      !localQueue.find(l => l.id === q.id || (l.patient_id === q.patient_id && l.purpose === q.purpose))
+    ),
+    ...localQueue,
+  ]
+
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ['patients'],
-    queryFn: async () => mockPatients,
+    queryFn: async () => {
+      const res = await apiClient.patients.list({ size: 100 })
+      return (res.content ?? []).map((p: any) => ({
+        id: p.id,
+        last_name: p.lastName ?? p.last_name ?? '',
+        first_name: p.firstName ?? p.first_name ?? '',
+        employer: p.employer ?? '',
+        birthdate: p.birthdate ?? '',
+        gender: p.gender ?? '',
+      }))
+    },
   })
 
   // Queue counter
@@ -178,14 +208,23 @@ export default function InformationDesk() {
 
   // Queue actions
   function updateStatus(id: string, newStatus: QueueEntry['status']) {
-    setQueue(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q))
+    apiClient.queue.updateStatus(id, { status: newStatus }).catch(() => {})
+    setLocalQueue(prev => {
+      const exists = prev.find(q => q.id === id)
+      if (exists) return prev.map(q => q.id === id ? { ...q, status: newStatus } : q)
+      const fromApi = queueData?.find(q => q.id === id)
+      return fromApi ? [...prev, { ...fromApi, status: newStatus }] : prev
+    })
     toast({ title: `Status updated to ${newStatus === 'in-progress' ? 'In Progress' : newStatus === 'done' ? 'Done' : 'Waiting'}`, variant: 'success' })
   }
 
-  function addToQueue(patientId: string, patientName: string, employer: string) {
+  function addToQueue(patientId: string, patientName: string, employer: string, patientData?: any) {
     if (!selectedPurpose) {
       toast({ title: 'Please select a purpose of visit', variant: 'default' })
       return
+    }
+    if (patientData) {
+      setSelectedPatient(patientData)
     }
     const entry: QueueEntry = {
       id: `q${Date.now()}`,
@@ -198,7 +237,17 @@ export default function InformationDesk() {
       queue_number: nextQueueNumber,
       created_at: new Date().toISOString(),
     }
-    setQueue(prev => [...prev, entry])
+    setLocalQueue(prev => [...prev, entry])
+    apiClient.queue.create({
+      patientId,
+      patientName,
+      employer: employer || '',
+      purpose: selectedPurpose,
+    }).then((res: any) => {
+      if (res?.id) {
+        setLocalQueue(prev => prev.map(q => q.id === entry.id ? { ...q, id: res.id } : q))
+      }
+    }).catch(() => {})
     setSelectedPurpose('')
     setSelectedExistingPatient(null)
     setShowModal(false)
@@ -208,7 +257,7 @@ export default function InformationDesk() {
     toast({ title: `Queue #${entry.queue_number} — ${patientName} added`, variant: 'success' })
   }
 
-  function handleRegisterAndQueue() {
+  async function handleRegisterAndQueue() {
     if (!regForm.last_name || !regForm.first_name) {
       setRegError('Last Name and First Name are required.')
       return
@@ -218,11 +267,61 @@ export default function InformationDesk() {
       return
     }
     setRegError('')
-    const newId = `p${Date.now()}`
-    const patientName = `${regForm.last_name}, ${regForm.first_name}`
-    addToQueue(newId, patientName, regForm.employer)
-    setRegForm(emptyRegistration)
-    toast({ title: `Patient registered: ${patientName}`, variant: 'success' })
+    try {
+      const created = await apiClient.patients.create({
+        lastName: regForm.last_name,
+        firstName: regForm.first_name,
+        middleName: regForm.middle_name,
+        contactNumber: regForm.contact_number,
+        employer: regForm.employer,
+        birthdate: regForm.birthdate || undefined,
+        gender: regForm.gender,
+        address: regForm.address,
+        nationality: regForm.nationality,
+      })
+      const patientId = created.id
+      const patientName = `${regForm.last_name}, ${regForm.first_name}`
+      const patientData = {
+        id: created.id,
+        last_name: regForm.last_name,
+        first_name: regForm.first_name,
+        middle_name: regForm.middle_name,
+        contact_number: regForm.contact_number,
+        employer: regForm.employer,
+        birthdate: regForm.birthdate,
+        gender: regForm.gender,
+        address: regForm.address,
+        nationality: regForm.nationality,
+      }
+      addToQueue(patientId, patientName, regForm.employer, patientData)
+      setRegForm(emptyRegistration)
+      toast({ title: `Patient registered: ${patientName}`, variant: 'success' })
+    } catch {
+      setRegError('Failed to register patient. Please try again.')
+    }
+  }
+
+  function startEdit(q: QueueEntry) {
+    setEditingId(q.id)
+    setEditValues({ purpose: q.purpose, employer: q.employer, status: q.status })
+  }
+
+  function saveEdit(id: string) {
+    apiClient.queue.update(id, {
+      purpose: editValues.purpose,
+      employer: editValues.employer,
+    }).catch(() => {})
+    if (editValues.status !== (queue.find(q => q.id === id)?.status)) {
+      apiClient.queue.updateStatus(id, { status: editValues.status }).catch(() => {})
+    }
+    setLocalQueue(prev => {
+      const exists = prev.find(q => q.id === id)
+      if (exists) return prev.map(q => q.id === id ? { ...q, ...editValues } : q)
+      const fromApi = queueData?.find(q => q.id === id)
+      return fromApi ? [...prev, { ...fromApi, ...editValues }] : prev
+    })
+    setEditingId(null)
+    toast({ title: 'Queue entry updated', variant: 'success' })
   }
 
   async function handleClearDone() {
@@ -239,7 +338,8 @@ export default function InformationDesk() {
       variant: 'warning',
     })
     if (confirmed) {
-      setQueue(prev => prev.filter(q => q.status !== 'done'))
+      apiClient.queue.removeCompleted().catch(() => {})
+      setLocalQueue(prev => prev.filter(q => q.status !== 'done'))
       toast({ title: `${doneCount} completed entries cleared`, variant: 'success' })
     }
   }
@@ -358,10 +458,12 @@ export default function InformationDesk() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredQueue.map(q => (
+                  {filteredQueue.map(q => {
+                    const isEditing = editingId === q.id
+                    return (
                     <tr key={q.id} className={cn(
                       "border-b border-[hsl(var(--border))] last:border-b-0 transition-colors",
-                      q.status === 'done' ? 'opacity-50' : 'hover:bg-[hsl(var(--accent)/0.3)]'
+                      isEditing ? 'bg-[hsl(var(--accent)/0.2)]' : q.status === 'done' ? 'opacity-50' : 'hover:bg-[hsl(var(--accent)/0.3)]'
                     )}>
                       <td className="px-4 py-2.5">
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] text-sm font-bold">
@@ -370,32 +472,80 @@ export default function InformationDesk() {
                       </td>
                       <td className="px-4 py-2.5">
                         <p className="text-sm font-medium">{q.patient_name}</p>
-                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] sm:hidden">{q.employer}</p>
+                        {isEditing
+                          ? <Input value={editValues.employer} onChange={e => setEditValues(v => ({ ...v, employer: e.target.value }))} className="h-6 text-xs mt-1 sm:hidden" />
+                          : <p className="text-[10px] text-[hsl(var(--muted-foreground))] sm:hidden">{q.employer}</p>
+                        }
                       </td>
-                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">{q.employer}</td>
-                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))]">{q.purpose}</td>
-                      <td className="px-4 py-2.5"><QueueStatusBadge status={q.status} /></td>
+                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] hidden sm:table-cell">
+                        {isEditing
+                          ? <Input value={editValues.employer} onChange={e => setEditValues(v => ({ ...v, employer: e.target.value }))} className="h-7 text-sm" />
+                          : q.employer
+                        }
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))]">
+                        {isEditing
+                          ? (
+                            <Select value={editValues.purpose} onValueChange={v => setEditValues(ev => ({ ...ev, purpose: v }))}>
+                              <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+                              <SelectContent>{PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                            </Select>
+                          )
+                          : q.purpose
+                        }
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isEditing
+                          ? (
+                            <Select value={editValues.status} onValueChange={v => setEditValues(ev => ({ ...ev, status: v as QueueEntry['status'] }))}>
+                              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="waiting">Waiting</SelectItem>
+                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                <SelectItem value="done">Done</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )
+                          : <QueueStatusBadge status={q.status} />
+                        }
+                      </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1">
-                          {q.status === 'waiting' && (
-                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'in-progress')} className="h-7 text-xs text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)]">
-                              Start
-                            </Button>
-                          )}
-                          {q.status === 'in-progress' && (
-                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'done')} className="h-7 text-xs text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
-                              Done
-                            </Button>
-                          )}
-                          {q.status === 'done' && (
-                            <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'waiting')} className="h-7 text-xs text-[hsl(var(--muted-foreground))]">
-                              Reset
-                            </Button>
+                          {isEditing ? (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => saveEdit(q.id)} className="h-7 text-xs text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
+                                <Check className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} className="h-7 text-xs text-[hsl(var(--muted-foreground))]">
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              {q.status === 'waiting' && (
+                                <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'in-progress')} className="h-7 text-xs text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)]">
+                                  Start
+                                </Button>
+                              )}
+                              {q.status === 'in-progress' && (
+                                <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'done')} className="h-7 text-xs text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
+                                  Done
+                                </Button>
+                              )}
+                              {q.status === 'done' && (
+                                <Button variant="ghost" size="sm" onClick={() => updateStatus(q.id, 'waiting')} className="h-7 text-xs text-[hsl(var(--muted-foreground))]">
+                                  Reset
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => startEdit(q)} className="h-7 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+                                <PencilLine className="w-3 h-3" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                   {filteredQueue.length === 0 && (
                     <tr>
                       <td colSpan={6} className="text-center py-12 text-sm text-[hsl(var(--muted-foreground))]">
@@ -564,7 +714,8 @@ export default function InformationDesk() {
                       <Button onClick={() => addToQueue(
                         selectedExistingPatient.id,
                         `${selectedExistingPatient.last_name}, ${selectedExistingPatient.first_name}`,
-                        selectedExistingPatient.employer
+                        selectedExistingPatient.employer,
+                        selectedExistingPatient
                       )}>
                         <Plus className="w-4 h-4 mr-1.5" /> Add to Queue
                       </Button>

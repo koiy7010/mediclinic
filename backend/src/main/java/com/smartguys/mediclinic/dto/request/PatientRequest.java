@@ -1,5 +1,6 @@
 package com.smartguys.mediclinic.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -8,6 +9,7 @@ import java.time.LocalDate;
 @Data
 public class PatientRequest {
     
+    @JsonAlias("registration_date")
     private LocalDate registrationDate;
     
     @NotBlank(message = "Last name is required")

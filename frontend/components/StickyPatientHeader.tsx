@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Building2, Calendar, ClipboardList, CalendarCheck, BadgeCheck, AlertCircle, ChevronDown } from 'lucide-react'
+import { User, Building2, Calendar, ClipboardList, CalendarCheck, BadgeCheck, AlertCircle, ChevronDown, Pin, PinOff } from 'lucide-react'
 import { useState } from 'react'
 import { usePatient } from '@/lib/patient-context'
 import Link from 'next/link'
@@ -36,6 +36,7 @@ const quickLinks = [
 
 export default function StickyPatientHeader({ patient, extra, module }: Props) {
   const [showQuickNav, setShowQuickNav] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('headerPinned') === 'false')
   const { setPanelOpen } = usePatient()
 
   if (!patient) return null
@@ -87,71 +88,87 @@ export default function StickyPatientHeader({ patient, extra, module }: Props) {
           </>
         )}
 
-        <button
-          onClick={() => setPanelOpen(true)}
-          className="flex items-center gap-2 hover:bg-white/10 rounded-lg px-2 py-1 -mx-2 transition-colors cursor-pointer"
-        >
-          <User className="w-4 h-4 opacity-75" />
-          <div>
-            <p className="text-xs opacity-75 uppercase tracking-wide">Patient</p>
-            <p className="font-semibold text-sm">
-              {patient.last_name}, {patient.first_name} {patient.middle_name || ''}
-            </p>
-          </div>
-        </button>
-
-        <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 opacity-75" />
-          <div>
-            <p className="text-xs opacity-75 uppercase tracking-wide">Company</p>
-            <p className="font-semibold text-sm">{patient.employer || '—'}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 opacity-75" />
-          <div>
-            <p className="text-xs opacity-75 uppercase tracking-wide">Age / Sex</p>
-            <p className="font-semibold text-sm">
-              {calcAge(patient.birthdate)} yrs / {patient.gender || '—'}
-            </p>
-          </div>
-        </div>
-
-        {extra && (
+        {!collapsed && (
           <>
-            <div className="w-px h-8 bg-white/20 hidden sm:block" />
+            <button
+              onClick={() => setPanelOpen(true)}
+              className="flex items-center gap-2 hover:bg-white/10 rounded-lg px-2 py-1 -mx-2 transition-colors cursor-pointer"
+            >
+              <User className="w-4 h-4 opacity-75" />
+              <div>
+                <p className="text-xs opacity-75 uppercase tracking-wide">Patient</p>
+                <p className="font-semibold text-sm">
+                  {patient.last_name}, {patient.first_name} {patient.middle_name || ''}
+                </p>
+              </div>
+            </button>
 
             <div className="flex items-center gap-2">
-              <CalendarCheck className="w-4 h-4 opacity-75" />
+              <Building2 className="w-4 h-4 opacity-75" />
               <div>
-                <p className="text-xs opacity-75 uppercase tracking-wide">Last Visit</p>
-                <p className="font-semibold text-sm">{extra.date}</p>
+                <p className="text-xs opacity-75 uppercase tracking-wide">Company</p>
+                <p className="font-semibold text-sm">{patient.employer || '—'}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 opacity-75" />
+              <Calendar className="w-4 h-4 opacity-75" />
               <div>
-                <p className="text-xs opacity-75 uppercase tracking-wide">Last Test</p>
-                <p className="font-semibold text-sm">{extra.test}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {extra.normal === true
-                ? <BadgeCheck className="w-4 h-4 opacity-75" />
-                : <AlertCircle className="w-4 h-4 opacity-75" />
-              }
-              <div>
-                <p className="text-xs opacity-75 uppercase tracking-wide">Result</p>
-                <p className={`font-semibold text-sm ${extra.normal === false ? 'text-amber-200' : ''}`}>
-                  {extra.normal === null ? '—' : extra.normal ? 'Normal' : 'Abnormal'}
+                <p className="text-xs opacity-75 uppercase tracking-wide">Age / Sex</p>
+                <p className="font-semibold text-sm">
+                  {calcAge(patient.birthdate)} yrs / {patient.gender || '—'}
                 </p>
               </div>
             </div>
+
+            {extra && (
+              <>
+                <div className="w-px h-8 bg-white/20 hidden sm:block" />
+
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4 opacity-75" />
+                  <div>
+                    <p className="text-xs opacity-75 uppercase tracking-wide">Last Visit</p>
+                    <p className="font-semibold text-sm">{extra.date}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 opacity-75" />
+                  <div>
+                    <p className="text-xs opacity-75 uppercase tracking-wide">Last Test</p>
+                    <p className="font-semibold text-sm">{extra.test}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {extra.normal === true
+                    ? <BadgeCheck className="w-4 h-4 opacity-75" />
+                    : <AlertCircle className="w-4 h-4 opacity-75" />
+                  }
+                  <div>
+                    <p className="text-xs opacity-75 uppercase tracking-wide">Result</p>
+                    <p className={`font-semibold text-sm ${extra.normal === false ? 'text-amber-200' : ''}`}>
+                      {extra.normal === null ? '—' : extra.normal ? 'Normal' : 'Abnormal'}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
+
+        <button
+          onClick={() => setCollapsed(c => {
+            const next = !c
+            localStorage.setItem('headerPinned', String(!next))
+            return next
+          })}
+          className="ml-auto flex items-center gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+          title={collapsed ? 'Pin (expand patient info)' : 'Unpin (collapse patient info)'}
+        >
+          {collapsed ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+        </button>
       </div>
     </div>
   )

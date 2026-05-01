@@ -11,7 +11,7 @@ import {
   Printer, User, Building2, FileText, ChevronDown, Mail, Globe, Send
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { mockPatients, mockLabData, mockRadiologyReports, mockMedicalExams } from '@/lib/mockData'
+import { apiClient } from '@/lib/api-client'
 import { toast } from '@/lib/use-toast'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -44,52 +44,6 @@ const RECEIVER_TYPES = [
   { value: 'representative', label: 'Representative' },
   { value: 'company', label: 'Company / HR' },
 ]
-
-/* ── Build release entries from mock data ── */
-function buildReleaseEntries(): ReleaseEntry[] {
-  const mockEmails: Record<string, string> = {
-    p1: 'maria.santos@email.com',
-    p2: 'juan.reyes@email.com',
-    p3: 'ana.garcia@email.com',
-    p4: 'carlos.mendoza@email.com',
-    p5: '',
-  }
-  return mockPatients.map(p => {
-    const reports: ReportStatus[] = []
-    const labData = mockLabData[p.id]
-    if (labData && Object.keys(labData).length > 0) {
-      reports.push({ id: 'lab', label: 'Laboratory', done: true })
-    }
-    const xrayData = mockRadiologyReports[p.id]
-    if (xrayData && xrayData.length > 0) {
-      reports.push({ id: 'xray', label: 'X-Ray', done: true })
-    }
-    const examData = mockMedicalExams[p.id]
-    if (examData) {
-      reports.push({ id: 'exam', label: 'Medical Exam', done: true })
-    }
-    // Simulate some pending reports
-    if (p.id === 'p5') {
-      reports.push({ id: 'lab', label: 'Laboratory', done: false })
-      reports.push({ id: 'xray', label: 'X-Ray', done: false })
-    }
-    if (p.id === 'p2') {
-      reports.push({ id: 'ecg', label: 'ECG', done: false })
-    }
-
-    const allDone = reports.length > 0 && reports.every(r => r.done)
-    const status: ReleaseEntry['status'] = allDone ? 'ready' : 'pending'
-
-    return {
-      patient_id: p.id,
-      patient_name: `${p.last_name}, ${p.first_name}`,
-      employer: p.employer || '—',
-      email: mockEmails[p.id] || '',
-      reports,
-      status,
-    }
-  }).filter(e => e.reports.length > 0)
-}
 
 function generateClaimNo() {
   const date = format(new Date(), 'yyyyMMdd')
@@ -284,11 +238,21 @@ function ReleaseModal({
 
 /* ── Main Component ── */
 export default function ReleasingPage() {
-  const [entries, setEntries] = useState<ReleaseEntry[]>(() => buildReleaseEntries())
+  const [localEntries, setLocalEntries] = useState<Record<string, Partial<ReleaseEntry>>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'ready' | 'released' | 'pending'>('ready')
   const [releaseTarget, setReleaseTarget] = useState<ReleaseEntry | null>(null)
   const { confirm, ConfirmDialog } = useConfirm()
+
+  const { data: apiData } = useQuery({
+    queryKey: ['releasing'],
+    queryFn: () => apiClient.releasing.list(),
+  })
+
+  const entries: ReleaseEntry[] = ((apiData as any)?.content ?? []).map((e: any) => ({
+    ...e,
+    ...localEntries[e.patient_id],
+  }))
 
   // Filter entries
   const filtered = entries
@@ -308,19 +272,22 @@ export default function ReleasingPage() {
 
   function handleRelease(entryId: string, method: string, receiverType: string, receiverName: string) {
     const claimNo = generateClaimNo()
-    setEntries(prev => prev.map(e =>
-      e.patient_id === entryId
-        ? {
-            ...e,
-            status: 'released' as const,
-            release_method: method as ReleaseEntry['release_method'],
-            released_at: new Date().toISOString(),
-            received_by: receiverName,
-            receiver_type: receiverType as any,
-            claim_no: claimNo,
-          }
-        : e
-    ))
+    apiClient.releasing.release(entryId, {
+      releaseMethod: method,
+      receivedBy: receiverName,
+      receiverType: receiverType,
+    }).catch(() => {})
+    setLocalEntries(prev => ({
+      ...prev,
+      [entryId]: {
+        status: 'released' as const,
+        release_method: method as ReleaseEntry['release_method'],
+        released_at: new Date().toISOString(),
+        received_by: receiverName,
+        receiver_type: receiverType as any,
+        claim_no: claimNo,
+      },
+    }))
     setReleaseTarget(null)
     const methodLabel = method === 'email' ? 'Sent via email' : method === 'portal' ? 'Published to portal' : 'Released'
     toast({ title: `${methodLabel} — Claim #${claimNo}`, variant: 'success' })
