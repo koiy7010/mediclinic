@@ -248,6 +248,13 @@ export default function LaboratoryReport() {
     }
   }, [isDirty, tabData, saveMutation, saveAllMutation])
 
+  const handleDiscard = useCallback(() => {
+    setTabData((prev: any) => { const next = { ...prev }; delete next[activeTab]; return next })
+    const remaining = Object.keys(tabData).filter(k => k !== activeTab)
+    if (remaining.length === 0) setIsDirty(false)
+    toast({ title: `Changes to ${activeTab} discarded`, variant: 'default' })
+  }, [activeTab, tabData])
+
   const goToNextTab = () => {
     const currentIndex = TABS.findIndex(t => t.id === activeTab)
     if (currentIndex < TABS.length - 1) {
@@ -396,6 +403,8 @@ export default function LaboratoryReport() {
         nextLabel={hasNextTab ? TABS[currentTabIndex + 1].label : undefined}
         onNext={goToNextTab}
         onSaveAll={Object.keys(tabData).length > 1 ? () => saveAllMutation.mutate(tabData) : undefined}
+        onUndo={!!tabData[activeTab] ? handleDiscard : undefined}
+        showUndo={!!tabData[activeTab]}
       />
       {ConfirmDialog}
       {EditGuardDialog}

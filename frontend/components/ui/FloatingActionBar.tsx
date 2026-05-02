@@ -43,7 +43,7 @@ export function FloatingActionBar({
           size="sm"
           onClick={onUndo}
           className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-          title="Undo last change"
+          title="Discard unsaved changes (restore original)"
         >
           <Undo2 className="w-4 h-4" />
         </Button>
