@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import StickyPatientHeader from '@/components/StickyPatientHeader'
 import UrinalysisTab from '@/components/laboratory/UrinalysisTab'
@@ -11,7 +11,7 @@ import FecalysisTab from '@/components/laboratory/FecalysisTab'
 import Chem10Tab from '@/components/laboratory/Chem10Tab'
 import BloodTypingTab from '@/components/laboratory/BloodTypingTab'
 import { Button } from '@/components/ui/button'
-import { Save, FlaskConical, CheckCheck, Copy, ChevronLeft, ChevronRight, Eraser } from 'lucide-react'
+import { FlaskConical, CheckCheck, Copy, ChevronLeft, ChevronRight, Eraser } from 'lucide-react'
 import { format } from 'date-fns'
 import { usePatient } from '@/lib/patient-context'
 import { apiClient } from '@/lib/api-client'
@@ -26,6 +26,7 @@ import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useEditGuard } from '@/lib/use-edit-guard'
 import { VisitSelector } from '@/components/ui/VisitSelector'
 
 const TAB_TO_REPORT_TYPE: Record<string, string> = {
@@ -70,6 +71,7 @@ export default function LaboratoryReport() {
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { guardEdit, ConfirmDialog: EditGuardDialog } = useEditGuard()
 
   const { data: labReports } = useQuery<any[]>({
     queryKey: ['lab-reports', selectedPatient?.id],
@@ -145,22 +147,31 @@ export default function LaboratoryReport() {
     },
   })
 
-  const patientApiData = labReports
+  const patientApiData = (labReports && selectedVisitDate)
     ? Object.fromEntries(
-        (selectedVisitDate
-          ? labReports.filter((r: any) => (r.resultDate ?? r.result_date) === selectedVisitDate)
-          : labReports
-        ).map((r: any) => {
-          const tabKey = Object.entries(TAB_TO_REPORT_TYPE).find(([, v]) => v === r.reportType)?.[0] ?? r.reportType
-          return [tabKey, { ...r.data, result_date: r.resultDate, is_normal: r.isNormal, remark: r.remark }]
-        })
+        labReports
+          .filter((r: any) => (r.resultDate ?? r.result_date) === selectedVisitDate)
+          .map((r: any) => {
+            const tabKey = Object.entries(TAB_TO_REPORT_TYPE).find(([, v]) => v === r.reportType)?.[0] ?? r.reportType
+            return [tabKey, { ...r.data, result_date: r.resultDate, is_normal: r.isNormal, remark: r.remark }]
+          })
       )
     : {}
   const current = tabData[activeTab] ?? patientApiData[activeTab] ?? { result_date: today }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (selectedVisitDate) {
+      const ok = await guardEdit({
+        resultDate: selectedVisitDate,
+        patientId: selectedPatient!.id,
+        patientName: `${selectedPatient!.last_name}, ${selectedPatient!.first_name}`,
+        module: 'Laboratory',
+        detail: activeTab,
+      })
+      if (!ok) return
+    }
     saveMutation.mutate()
-  }, [saveMutation])
+  }, [saveMutation, selectedVisitDate, guardEdit, selectedPatient, activeTab])
 
   useCtrlS(handleSave)
 
@@ -284,12 +295,12 @@ export default function LaboratoryReport() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="hidden sm:inline text-xs text-[hsl(var(--muted-foreground))]">Alt+1-7 tabs</span>
-            {labReports && labReports.length > 0 && (() => {
-              const dates = [...new Set(labReports.map((r: any) => r.resultDate ?? r.result_date))]
+            {(() => {
+              const dates = [...new Set((labReports ?? []).map((r: any) => r.resultDate ?? r.result_date))]
                 .filter(Boolean)
                 .sort()
                 .reverse()
-              const visits = dates.map((d: any, i: number) => ({ id: d, resultDate: d }))
+              const visits = dates.map((d: any) => ({ id: d, resultDate: d }))
               return (
                 <VisitSelector
                   visits={visits}
@@ -387,6 +398,7 @@ export default function LaboratoryReport() {
         onSaveAll={Object.keys(tabData).length > 1 ? () => saveAllMutation.mutate(tabData) : undefined}
       />
       {ConfirmDialog}
+      {EditGuardDialog}
     </div>
   )
 }

@@ -22,6 +22,7 @@ import { PrintButton } from '@/components/ui/PrintButton'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { VisitSelector } from '@/components/ui/VisitSelector'
 import { cn } from '@/lib/utils'
+import { useEditGuard } from '@/lib/use-edit-guard'
 
 const TEMPLATES = [
   { label: 'Normal Abdomen UTZ', findings: 'The liver is normal in size and echogenicity. No focal hepatic lesions. The gallbladder is normal. No calculi or wall thickening. The pancreas is not well visualized. The spleen is normal. Both kidneys are normal in size, shape, and echogenicity. No hydronephrosis or calculi. The urinary bladder is well-distended, with smooth walls and no intraluminal lesion.', impression: 'Normal abdominal ultrasound.', isNormal: true },
@@ -59,6 +60,7 @@ export default function UtzReport() {
   const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
+  const { guardEdit, ConfirmDialog: EditGuardDialog } = useEditGuard()
 
   const { data: utzReports } = useQuery<any[]>({
     queryKey: ['utz-reports', selectedPatient?.id],
@@ -134,9 +136,18 @@ export default function UtzReport() {
     setIsDirty(true)
   }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (selectedVisitId) {
+      const ok = await guardEdit({
+        resultDate: form.result_date,
+        patientId: selectedPatient!.id,
+        patientName: `${selectedPatient!.last_name}, ${selectedPatient!.first_name}`,
+        module: 'UTZ',
+      })
+      if (!ok) return
+    }
     saveMutation.mutate()
-  }, [saveMutation])
+  }, [saveMutation, selectedVisitId, guardEdit, selectedPatient, form.result_date])
 
   useCtrlS(handleSave)
   useGlobalShortcuts({ onSave: handleSave })
@@ -277,6 +288,7 @@ export default function UtzReport() {
       </div>
 
       <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
+      {EditGuardDialog}
     </div>
   )
 }

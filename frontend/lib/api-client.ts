@@ -209,6 +209,19 @@ class ApiClient {
       const query = params ? `?${buildQueryString(params)}` : '';
       return this.request<PagedResponse<any>>(`/activity-logs${query}`);
     },
+
+    create: (data: {
+      action: string;
+      module: string;
+      patientId: string;
+      patientName: string;
+      details: string;
+      user?: string;
+    }) =>
+      this.request<any>('/activity-logs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   };
 
   // Releasing API methods

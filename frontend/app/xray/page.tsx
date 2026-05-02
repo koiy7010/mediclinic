@@ -20,7 +20,7 @@ import { useGlobalShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { FileUpload } from '@/components/ui/FileUpload'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useEditGuard } from '@/lib/use-edit-guard'
 import { VisitSelector } from '@/components/ui/VisitSelector'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +61,7 @@ export default function XRayReport() {
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
   const { confirm, ConfirmDialog } = useConfirm()
+  const { guardEdit, ConfirmDialog: EditGuardDialog } = useEditGuard()
 
   const { data: xrayReports } = useQuery<any[]>({
     queryKey: ['xray-reports', selectedPatient?.id],
@@ -149,8 +150,17 @@ export default function XRayReport() {
       })
       if (!proceed) return
     }
+    if (selectedVisitId) {
+      const ok = await guardEdit({
+        resultDate: form.result_date,
+        patientId: selectedPatient!.id,
+        patientName: `${selectedPatient!.last_name}, ${selectedPatient!.first_name}`,
+        module: 'X-Ray',
+      })
+      if (!ok) return
+    }
     saveMutation.mutate()
-  }, [saveMutation, form, confirm])
+  }, [saveMutation, form, confirm, guardEdit, selectedVisitId, selectedPatient])
 
   useCtrlS(handleSave)
   useGlobalShortcuts({ onSave: handleSave })
@@ -299,6 +309,7 @@ export default function XRayReport() {
 
       <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
       {ConfirmDialog}
+      {EditGuardDialog}
     </div>
   )
 }

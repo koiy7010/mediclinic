@@ -22,6 +22,7 @@ import { PrintButton } from '@/components/ui/PrintButton'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { VisitSelector } from '@/components/ui/VisitSelector'
 import { cn } from '@/lib/utils'
+import { useEditGuard } from '@/lib/use-edit-guard'
 
 const TEMPLATES = [
   { label: 'Normal Sinus Rhythm', findings: 'Rate: 72 bpm. Regular rhythm. Normal P wave morphology. PR interval: 0.16s. QRS duration: 0.08s. Normal axis. No ST segment changes. No T wave abnormalities.', impression: 'Normal sinus rhythm. No acute changes.', isNormal: true },
@@ -59,6 +60,7 @@ export default function EcgReport() {
   const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
+  const { guardEdit, ConfirmDialog: EditGuardDialog } = useEditGuard()
 
   const { data: ecgReports } = useQuery<any[]>({
     queryKey: ['ecg-reports', selectedPatient?.id],
@@ -134,9 +136,18 @@ export default function EcgReport() {
     setIsDirty(true)
   }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (selectedVisitId) {
+      const ok = await guardEdit({
+        resultDate: form.result_date,
+        patientId: selectedPatient!.id,
+        patientName: `${selectedPatient!.last_name}, ${selectedPatient!.first_name}`,
+        module: 'ECG',
+      })
+      if (!ok) return
+    }
     saveMutation.mutate()
-  }, [saveMutation])
+  }, [saveMutation, selectedVisitId, guardEdit, selectedPatient, form.result_date])
 
   useCtrlS(handleSave)
   useGlobalShortcuts({ onSave: handleSave })
@@ -288,6 +299,7 @@ export default function EcgReport() {
       </div>
 
       <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
+      {EditGuardDialog}
     </div>
   )
 }

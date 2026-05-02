@@ -1,7 +1,9 @@
 package com.smartguys.mediclinic.controller;
 
+import com.smartguys.mediclinic.dto.request.ActivityLogRequest;
 import com.smartguys.mediclinic.dto.response.ActivityLogResponse;
 import com.smartguys.mediclinic.dto.response.PagedResponse;
+import com.smartguys.mediclinic.model.ActivityLog;
 import com.smartguys.mediclinic.model.enums.ActionType;
 import com.smartguys.mediclinic.model.enums.ModuleType;
 import com.smartguys.mediclinic.service.ActivityLogService;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/activity-logs")
@@ -28,6 +31,36 @@ public class ActivityLogController {
         this.activityLogService = activityLogService;
     }
     
+    @PostMapping
+    @Operation(summary = "Create activity log", description = "Manually records an activity log entry")
+    @ApiResponse(responseCode = "201", description = "Activity log created")
+    public ResponseEntity<ActivityLogResponse> createActivityLog(@RequestBody ActivityLogRequest request) {
+        ActivityLog log = new ActivityLog();
+        log.setTimestamp(LocalDateTime.now());
+        log.setCreatedAt(LocalDateTime.now());
+        log.setPatientId(request.getPatientId());
+        log.setPatientName(request.getPatientName());
+        log.setDetails(request.getDetails());
+        log.setUser(request.getUser() != null ? request.getUser() : "system");
+
+        try {
+            log.setAction(ActionType.valueOf(request.getAction().toUpperCase()));
+        } catch (Exception e) {
+            log.setAction(ActionType.UPDATED);
+        }
+        try {
+            log.setModule(ModuleType.valueOf(request.getModule().toUpperCase().replace("-", "_").replace(" ", "_")));
+        } catch (Exception e) {
+            log.setModule(ModuleType.LABORATORY);
+        }
+
+        activityLogService.saveActivityLog(log);
+
+        ActivityLogResponse response = new ActivityLogResponse();
+        BeanUtils.copyProperties(log, response);
+        return ResponseEntity.status(201).body(response);
+    }
+
     @GetMapping
     @Operation(summary = "Get activity logs", description = "Retrieves activity logs with optional filters")
     @ApiResponse(responseCode = "200", description = "Activity logs retrieved successfully")

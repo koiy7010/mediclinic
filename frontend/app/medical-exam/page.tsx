@@ -25,6 +25,7 @@ import { SectionProgress } from '@/components/ui/ProgressIndicator'
 import { PageBreadcrumb } from '@/components/ui/Breadcrumb'
 import { PrintButton } from '@/components/ui/PrintButton'
 import { VisitSelector } from '@/components/ui/VisitSelector'
+import { useEditGuard } from '@/lib/use-edit-guard'
 
 const BMI_CLASS = ['Normal', 'Overweight', 'Underweight', 'Obese Class I', 'Obese Class II', 'Obese Class III']
 
@@ -142,6 +143,7 @@ export default function MedicalExamination() {
   const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null)
   const qc = useQueryClient()
   const { selectedPatient } = usePatient()
+  const { guardEdit, ConfirmDialog: EditGuardDialog } = useEditGuard()
 
   const { data: existingExams } = useQuery<any[]>({
     queryKey: ['medical-exams', selectedPatient?.id],
@@ -226,9 +228,18 @@ export default function MedicalExamination() {
     setIsDirty(true)
   }
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (selectedVisitId) {
+      const ok = await guardEdit({
+        resultDate: form.result_date,
+        patientId: selectedPatient!.id,
+        patientName: `${selectedPatient!.last_name}, ${selectedPatient!.first_name}`,
+        module: 'Medical_Exam',
+      })
+      if (!ok) return
+    }
     saveMutation.mutate()
-  }, [saveMutation])
+  }, [saveMutation, selectedVisitId, guardEdit, selectedPatient, form.result_date])
 
   useCtrlS(handleSave)
   useGlobalShortcuts({ onSave: handleSave })
@@ -394,6 +405,7 @@ export default function MedicalExamination() {
       </div>
 
       <FloatingActionBar onSave={handleSave} saving={saveMutation.isPending} />
+      {EditGuardDialog}
     </div>
   )
 }
