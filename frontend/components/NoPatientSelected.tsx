@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { mockPatients } from '@/lib/mockData'
+import { apiClient } from '@/lib/api-client'
 import { usePatient } from '@/lib/patient-context'
 import { useRecentPatients } from '@/components/ui/RecentPatients'
 import type { LucideIcon } from 'lucide-react'
@@ -13,6 +13,23 @@ function calcAge(birthdate?: string) {
   return Math.floor(
     (Date.now() - new Date(birthdate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
   )
+}
+
+function normalizePatient(p: any) {
+  return {
+    id: p.id,
+    last_name: p.lastName ?? p.last_name ?? '',
+    first_name: p.firstName ?? p.first_name ?? '',
+    middle_name: p.middleName ?? p.middle_name ?? '',
+    employer: p.employer ?? '',
+    birthdate: p.birthdate ?? '',
+    gender: p.gender ?? '',
+    contact_number: p.contactNumber ?? p.contact_number ?? '',
+    address: p.address ?? '',
+    marital_status: p.maritalStatus ?? p.marital_status ?? '',
+    nationality: p.nationality ?? '',
+    registration_date: p.registrationDate ?? p.registration_date ?? '',
+  }
 }
 
 interface Props {
@@ -30,7 +47,10 @@ export default function NoPatientSelected({ icon: Icon, label }: Props) {
 
   const { data: patients = [] } = useQuery<any[]>({
     queryKey: ['patients'],
-    queryFn: async () => mockPatients,
+    queryFn: async () => {
+      const res = await apiClient.patients.list({ size: 100 })
+      return (res.content ?? []).map(normalizePatient)
+    },
   })
 
   const results = query.trim()

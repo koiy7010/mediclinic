@@ -100,10 +100,12 @@ export default function LaboratoryReport() {
 
   const upsertTab = async (tabId: string, payload: any) => {
     // If editing an existing visit date, update the matching report; otherwise create new
-    const existing = selectedVisitDate
-      ? labReports?.find((r: any) => r.reportType === TAB_TO_REPORT_TYPE[tabId] && (r.resultDate ?? r.result_date) === selectedVisitDate)
-      : null
-    if (existing) {
+    let existing = null
+    if (selectedVisitDate && labReports && labReports.length > 0) {
+      existing = labReports.find((r: any) => r.reportType === TAB_TO_REPORT_TYPE[tabId] && (r.resultDate ?? r.result_date) === selectedVisitDate)
+    }
+    
+    if (existing && existing.id) {
       return apiClient.labReports.update(selectedPatient!.id, existing.id, payload)
     }
     return apiClient.labReports.create(selectedPatient!.id, payload)

@@ -1,0 +1,4 @@
+com\smartguys\mediclinic\exception\GlobalExceptionHandlerTest.class
+com\smartguys\mediclinic\util\BmiCalculatorTest.class
+com\smartguys\mediclinic\service\ReferenceRangeServiceTest.class
+com\smartguys\mediclinic\controller\HealthControllerTest.class
