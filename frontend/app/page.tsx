@@ -293,27 +293,37 @@ export default function PatientProfile() {
   const timelineEvents: TimelineEvent[] = (() => {
     if (!selectedId) return []
     const events: TimelineEvent[] = []
+    const safeDate = (value?: string | null) => {
+      if (!value) return undefined
+      const parsed = new Date(value)
+      return Number.isNaN(parsed.getTime()) ? undefined : value
+    }
+
     ;(labHistory as any[]).forEach((r: any) => {
-      if (r.result_date) {
-        events.push({
-          id: r.id, type: 'lab', subtype: r.report_type,
-          date: r.result_date, title: `Laboratory - ${r.report_type}`,
-          summary: r.remarks || (r.is_normal ? 'Results within normal range' : 'Abnormal findings'),
-          isNormal: r.is_normal, data: r,
-        })
-      }
+      const eventDate = safeDate(r.resultDate ?? r.result_date)
+      if (!eventDate) return
+      events.push({
+        id: r.id, type: 'lab', subtype: r.report_type,
+        date: eventDate, title: `Laboratory - ${r.report_type}`,
+        summary: r.remarks || (r.is_normal ? 'Results within normal range' : 'Abnormal findings'),
+        isNormal: r.is_normal, data: r,
+      })
     })
     ;(xrayReports as any[]).forEach((report: any) => {
+      const eventDate = safeDate(report.resultDate ?? report.result_date)
+      if (!eventDate) return
       events.push({
         id: report.id, type: 'xray', subtype: report.examination_type,
-        date: report.result_date, title: report.report_title,
+        date: eventDate, title: report.report_title,
         summary: report.impression, isNormal: report.is_normal, data: report,
       })
     })
     ;(medicalExams as any[]).forEach((exam: any) => {
+      const eventDate = safeDate(exam.resultDate ?? exam.result_date)
+      if (!eventDate) return
       events.push({
-        id: exam.id ?? `exam_${exam.result_date}`, type: 'medical-exam',
-        date: exam.result_date, title: 'Medical Examination',
+        id: exam.id ?? `exam_${eventDate}`, type: 'medical-exam',
+        date: eventDate, title: 'Medical Examination',
         summary: exam.remarks || `Evaluation: ${exam.evaluation}`,
         isNormal: exam.evaluation === 'A', data: exam,
       })

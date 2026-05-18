@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { 
   FlaskConical, Stethoscope, RadioTower, ScanLine, Zap, 
@@ -35,13 +35,21 @@ const TYPE_CONFIG = {
   ecg: { icon: Zap, color: 'text-red-600', bg: 'bg-red-100', label: 'ECG' },
 }
 
+const parseTimelineDate = (value?: string | null) => {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 export function PatientTimeline({ events, onEventClick, className }: PatientTimelineProps) {
   const [expandedYear, setExpandedYear] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
 
   // Group events by year
   const eventsByYear = events.reduce((acc, event) => {
-    const year = new Date(event.date).getFullYear().toString()
+    const date = parseTimelineDate(event.date)
+    if (!date) return acc
+    const year = date.getFullYear().toString()
     if (!acc[year]) acc[year] = []
     acc[year].push(event)
     return acc
@@ -50,10 +58,12 @@ export function PatientTimeline({ events, onEventClick, className }: PatientTime
   // Sort years descending
   const years = Object.keys(eventsByYear).sort((a, b) => parseInt(b) - parseInt(a))
 
-  // Auto-expand current year
-  if (expandedYear === null && years.length > 0) {
-    setExpandedYear(years[0])
-  }
+  // Auto-expand current year when timeline data becomes available
+  useEffect(() => {
+    if (expandedYear === null && years.length > 0) {
+      setExpandedYear(years[0])
+    }
+  }, [expandedYear, years])
 
   const handleEventClick = (event: TimelineEvent) => {
     setSelectedEvent(event)
@@ -132,7 +142,7 @@ export function PatientTimeline({ events, onEventClick, className }: PatientTime
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-xs text-[hsl(var(--muted-foreground))]">
                               <Calendar className="w-3 h-3" />
-                              <span>{format(new Date(event.date), 'MMM dd, yyyy')}</span>
+                              <span>{parseTimelineDate(event.date) ? format(parseTimelineDate(event.date)!, 'MMM dd, yyyy') : 'Unknown date'}</span>
                               {event.subtype && (
                                 <>
                                   <span>•</span>
@@ -202,7 +212,7 @@ function TimelinePreviewModal({ event, onClose }: TimelinePreviewModalProps) {
               <div>
                 <h3 className="font-semibold">{event.title}</h3>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  {format(new Date(event.date), 'MMMM dd, yyyy')}
+                  {parseTimelineDate(event.date) ? format(parseTimelineDate(event.date)!, 'MMMM dd, yyyy') : 'Unknown date'}
                   {event.subtype && ` • ${event.subtype}`}
                 </p>
               </div>
