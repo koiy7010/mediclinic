@@ -184,9 +184,9 @@ export default function XRayReport() {
   const visits = (xrayReports ?? []).map((r: any) => ({ id: r.id, resultDate: r.resultDate ?? r.result_date }))
 
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
+    <div className="h-screen flex flex-col bg-[hsl(var(--background))]">
       <StickyPatientHeader patient={selectedPatient} module="X-Ray" />
-      <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-5">
+      <div className="w-full px-4 py-6 space-y-5 flex-1 overflow-y-auto">
         <PageBreadcrumb
           patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
           module="X-Ray"

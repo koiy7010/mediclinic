@@ -352,8 +352,8 @@ export default function InformationDesk() {
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
-      <div className="max-w-6xl mx-auto w-full px-4 py-6 space-y-5">
+    <div className="h-screen bg-[hsl(var(--background))] flex flex-col">
+      <div className="w-full px-4 py-6 space-y-5 flex-1 overflow-y-auto">
         {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">

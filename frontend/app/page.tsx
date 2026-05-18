@@ -332,10 +332,10 @@ export default function PatientProfile() {
   })()
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] pb-24">
+    <div className="h-screen bg-[hsl(var(--background))] flex flex-col">
       {selectedPatient && <StickyPatientHeader patient={selectedPatient} extra={lastVisitInfo} />}
-      <div className="overflow-auto">
-        <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-4">
+      <div className="overflow-y-auto flex-1">
+        <div className="w-full px-4 py-6 space-y-4">
           {/* Page header */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">

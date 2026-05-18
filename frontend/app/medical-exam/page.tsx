@@ -293,10 +293,10 @@ export default function MedicalExamination() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] pb-24">
+    <div className="h-screen flex flex-col bg-[hsl(var(--background))]">
       <StickyPatientHeader patient={selectedPatient} module="Medical Exam" />
 
-      <div className="max-w-5xl mx-auto w-full px-4 py-6 space-y-4">
+      <div className="w-full px-4 py-6 space-y-4 flex-1 overflow-y-auto">
         <PageBreadcrumb
           patientName={`${selectedPatient.last_name}, ${selectedPatient.first_name}`}
           module="Medical Exam"
@@ -328,10 +328,8 @@ export default function MedicalExamination() {
           </div>
         </div>
 
-        <SectionProgress sections={sections} />
-
-        {/* Sticky section jump navigation */}
-        <div className="sticky top-[60px] z-20 bg-[hsl(var(--background)/0.95)] backdrop-blur-sm border-b border-[hsl(var(--border))] -mx-4 px-4 py-2 print:hidden">
+        {/* Section jump navigation */}
+        <div className="relative z-20 bg-[hsl(var(--background)/0.95)] backdrop-blur-sm border-b border-[hsl(var(--border))] -mx-4 px-4 py-2 print:hidden">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
             {sections.map((s) => (
               <a

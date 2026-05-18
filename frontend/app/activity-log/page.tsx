@@ -126,8 +126,8 @@ export default function ActivityLogPage() {
   const activeFilters = (moduleFilter !== 'All' ? 1 : 0) + (actionFilter !== 'All' ? 1 : 0)
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
-      <div className="max-w-4xl mx-auto w-full px-4 py-6 space-y-5">
+    <div className="h-screen flex flex-col bg-[hsl(var(--background))]">
+      <div className="w-full px-4 py-6 space-y-5 flex-1 overflow-y-auto">
         {/* Page header */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[hsl(var(--primary)/0.1)] flex items-center justify-center">
