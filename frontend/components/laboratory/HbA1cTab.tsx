@@ -6,11 +6,21 @@ import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { CheckCheck, Eraser } from 'lucide-react'
 
+const EDIT_WINDOW_HOURS = 72
+
+/** Returns true if result date is older than 72 hours */
+function isDataLocked(resultDate: string | undefined): boolean {
+  if (!resultDate) return false
+  const hours = (Date.now() - new Date(resultDate).getTime()) / (1000 * 60 * 60)
+  return hours > EDIT_WINDOW_HOURS
+}
+
 const NORMAL_VALUES = { result_date: format(new Date(), 'yyyy-MM-dd'), hba1c: '5.2', is_normal: true }
 
 export default function HbA1cTab({ data, onChange }: { data: any; onChange: (v: any) => void }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const set = (k: string, v: any) => onChange({ ...data, [k]: v })
+  const isLocked = isDataLocked(data.result_date)
 
   const val = parseFloat(data.hba1c) || 0
   const classification =
@@ -29,12 +39,22 @@ export default function HbA1cTab({ data, onChange }: { data: any; onChange: (v: 
             className="border border-[hsl(var(--input))] rounded px-2.5 py-1 text-sm bg-[hsl(var(--card))] w-44 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]" />
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" onClick={() => onChange({ ...NORMAL_VALUES })}
-            className="h-7 text-xs border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))]">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onChange({ ...NORMAL_VALUES })}
+            disabled={isLocked}
+            className="h-7 text-xs border-[hsl(var(--success)/0.5)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-muted))] disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isLocked ? "Data is older than 72 hours and can no longer be edited" : "Fill with normal values"}>
             <CheckCheck className="w-3.5 h-3.5 mr-1" /> Fill Normal
           </Button>
-          <Button variant="outline" size="sm" onClick={() => onChange({ result_date: data.result_date || today })}
-            className="h-7 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onChange({ result_date: data.result_date || today })}
+            disabled={isLocked}
+            className="h-7 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isLocked ? "Data is older than 72 hours and can no longer be edited" : "Clear all fields"}>
             <Eraser className="w-3.5 h-3.5 mr-1" /> Clear
           </Button>
         </div>
